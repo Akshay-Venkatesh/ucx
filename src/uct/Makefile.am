@@ -28,7 +28,11 @@ noinst_HEADERS = \
 	base/uct_log.h \
 	base/uct_worker.h \
 	sm/self/self.h \
-	tcp/tcp.h
+	tcp/tcp.h  \
+	tcp/tcpcm/tcpcm_md.h \
+	tcp/tcpcm/tcpcm_iface.h \
+	tcp/tcpcm/tcpcm_ep.h \
+	tcp/tcpcm/tcpcm_def.h
 
 libuct_la_SOURCES = \
 	base/uct_md.c \
@@ -39,7 +43,10 @@ libuct_la_SOURCES = \
 	tcp/tcp_ep.c \
 	tcp/tcp_iface.c \
 	tcp/tcp_md.c \
-	tcp/tcp_net.c
+	tcp/tcp_net.c \
+	tcp/tcpcm/tcpcm_md.c \
+	tcp/tcpcm/tcpcm_iface.c \
+	tcp/tcpcm/tcpcm_ep.c
 
 if HAVE_IB
 libuct_la_CPPFLAGS += $(IBVERBS_CPPFLAGS)
