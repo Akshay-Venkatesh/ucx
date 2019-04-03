@@ -63,6 +63,9 @@ static int uct_tcpcm_is_addr_route_resolved(int sock_id, struct sockaddr *addr,
         return 0;
     }
 
+    printf("attempting connect(addr = %s) \n",
+	   ucs_sockaddr_str(addr, ip_port_str, UCS_SOCKADDR_STRING_LEN));
+
     if (connect(sock_id, addr, addrlen)) {
 
         if (errno == ECONNREFUSED) {
