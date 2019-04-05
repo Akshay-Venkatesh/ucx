@@ -133,12 +133,18 @@ uct_cuda_ipc_progress_event_q(uct_cuda_ipc_iface_t *iface,
     ucs_status_t status;
 
     ucs_queue_for_each_safe(cuda_ipc_event, iter, event_q, queue) {
-        status = UCT_CUDADRV_FUNC(cuEventQuery(cuda_ipc_event->event));
-        if (UCS_INPROGRESS == status) {
+        //status = UCT_CUDADRV_FUNC(cuEventQuery(cuda_ipc_event->event));
+        //if (UCS_INPROGRESS == status) {
+        //    continue;
+        //} else if (UCS_OK != status) {
+        //    return status;
+        //}
+
+        if (0 == cuda_ipc_event->done) {
             continue;
-        } else if (UCS_OK != status) {
-            return status;
         }
+
+        cuda_ipc_event->done = 0;
 
         ucs_queue_del_iter(event_q, iter);
         if (cuda_ipc_event->comp != NULL) {
