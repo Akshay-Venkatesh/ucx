@@ -78,7 +78,8 @@ static ucs_status_t uct_cuda_ipc_iface_query(uct_iface_h iface,
     iface_attr->cap.flags               = UCT_IFACE_FLAG_CONNECT_TO_IFACE |
                                           UCT_IFACE_FLAG_PENDING   |
                                           UCT_IFACE_FLAG_GET_ZCOPY |
-                                          UCT_IFACE_FLAG_PUT_ZCOPY;
+                                          UCT_IFACE_FLAG_PUT_ZCOPY |
+                                          UCT_IFACE_FLAG_EVENT_SEND_COMP;
 
     iface_attr->cap.put.max_short       = 0;
     iface_attr->cap.put.max_bcopy       = 0;
@@ -121,6 +122,14 @@ uct_cuda_ipc_iface_flush(uct_iface_h tl_iface, unsigned flags,
 
     UCT_TL_IFACE_STAT_FLUSH_WAIT(ucs_derived_of(tl_iface, uct_base_iface_t));
     return UCS_INPROGRESS;
+}
+
+static ucs_status_t uct_cuda_ipc_iface_event_fd_get(uct_iface_h tl_iface, int *fd_p)
+{
+    uct_cuda_ipc_iface_t *iface = ucs_derived_of(tl_iface, uct_cuda_ipc_iface_t);
+
+    *fd_p = iface->epfd;
+    return UCS_OK;
 }
 
 static UCS_F_ALWAYS_INLINE unsigned
@@ -191,6 +200,8 @@ static uct_iface_ops_t uct_cuda_ipc_iface_ops = {
     .iface_progress_enable    = uct_base_iface_progress_enable,
     .iface_progress_disable   = uct_base_iface_progress_disable,
     .iface_progress           = uct_cuda_ipc_iface_progress,
+    .iface_event_fd_get       = uct_cuda_ipc_iface_event_fd_get,
+    .iface_event_arm          = ucs_empty_function_return_success,
     .iface_close              = UCS_CLASS_DELETE_FUNC_NAME(uct_cuda_ipc_iface_t),
     .iface_query              = uct_cuda_ipc_iface_query,
     .iface_get_device_address = uct_cuda_ipc_iface_get_device_address,
@@ -299,6 +310,13 @@ static UCS_CLASS_INIT_FUNC(uct_cuda_ipc_iface_t, uct_md_h md, uct_worker_h worke
     if (UCS_OK != status) {
         ucs_error("mpool creation failed");
         return UCS_ERR_IO_ERROR;
+    }
+
+    self->epfd = epoll_create(1);
+    if (self->epfd < 0) {
+        ucs_error("epoll_create() failed: %m");
+        status = UCS_ERR_IO_ERROR;
+        return status;
     }
 
     self->streams_initialized = 0;
