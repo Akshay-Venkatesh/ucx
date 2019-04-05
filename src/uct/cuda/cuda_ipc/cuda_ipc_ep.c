@@ -55,6 +55,19 @@ UCS_CLASS_DEFINE_DELETE_FUNC(uct_cuda_ipc_ep_t, uct_ep_t);
 #define uct_cuda_ipc_trace_data(_addr, _rkey, _fmt, ...)     \
     ucs_trace_data(_fmt " to %"PRIx64"(%+ld)", ## __VA_ARGS__, (_addr), (_rkey))
 
+static void CUDA_CB myHostFn(void *data)
+{
+    int *print_int = (int *) data;
+    *print_int = 1;
+}
+
+//void CUDA_CB myHostCallback(CUstream hStream,  CUresult status, void*  data)
+//{
+//    int *print_int = (int *) data;
+//    *print_int += 1;
+//    fprintf(stderr, "%d\n", *print_int);
+//}
+
 static UCS_F_ALWAYS_INLINE ucs_status_t
 uct_cuda_ipc_post_cuda_async_copy(uct_ep_h tl_ep, uint64_t remote_addr,
                                   const uct_iov_t *iov, uct_rkey_t rkey,
@@ -116,11 +129,24 @@ uct_cuda_ipc_post_cuda_async_copy(uct_ep_h tl_ep, uint64_t remote_addr,
         return status;
     }
 
-    status = UCT_CUDADRV_FUNC(cuEventRecord(cuda_ipc_event->event, stream));
+    //status = UCT_CUDADRV_FUNC(cuEventRecord(cuda_ipc_event->event, stream));
+    //if (UCS_OK != status) {
+    //    ucs_mpool_put(cuda_ipc_event);
+    //    return status;
+    //}
+
+    ucs_assert(cuda_ipc_event->done == 0);
+    status = UCT_CUDADRV_FUNC(cuLaunchHostFunc(stream, myHostFn, &(cuda_ipc_event->done)));
     if (UCS_OK != status) {
-        ucs_mpool_put(cuda_ipc_event);
         return status;
     }
+
+    //int userData = 42;
+    //status = UCT_CUDADRV_FUNC(cuStreamAddCallback(stream, myHostCallback,
+    //                                              &userData, 0));
+    //if (UCS_OK != status) {
+    //    return status;
+    //}
 
     ucs_queue_push(outstanding_queue, &cuda_ipc_event->queue);
     cuda_ipc_event->comp        = comp;

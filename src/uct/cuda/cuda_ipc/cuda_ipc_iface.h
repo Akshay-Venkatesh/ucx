@@ -47,6 +47,7 @@ typedef struct uct_cuda_ipc_iface_config {
 
 typedef struct uct_cuda_ipc_event_desc {
     CUevent           event;
+    int               done;
     void              *mapped_addr;
     uct_completion_t  *comp;
     ucs_queue_elem_t  queue;
