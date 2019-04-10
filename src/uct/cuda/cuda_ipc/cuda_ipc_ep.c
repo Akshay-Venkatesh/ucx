@@ -64,7 +64,7 @@ static void CUDA_CB myHostFn(void *ipc_event)
     char dummy = 0;
     int ret;
 
-    *print_int = 1;
+    *print_int = 1; // do we need a mutex for this update?
     for (;;) {
         ret = sendto(iface->signal_fd, &dummy, sizeof(dummy), 0,
                      (const struct sockaddr*)&(iface->signal_sockaddr),
