@@ -76,11 +76,12 @@ static ucs_status_t uct_cuda_ipc_iface_query(uct_iface_h iface,
     iface_attr->device_addr_len         = sizeof(uint64_t);
     iface_attr->ep_addr_len             = 0;
     iface_attr->max_conn_priv           = 0;
-    iface_attr->cap.flags               = UCT_IFACE_FLAG_CONNECT_TO_IFACE |
-                                          UCT_IFACE_FLAG_PENDING   |
-                                          UCT_IFACE_FLAG_GET_ZCOPY |
-                                          UCT_IFACE_FLAG_PUT_ZCOPY |
-                                          UCT_IFACE_FLAG_EVENT_SEND_COMP |
+    iface_attr->cap.flags               = UCT_IFACE_FLAG_ERRHANDLE_PEER_FAILURE |
+                                          UCT_IFACE_FLAG_CONNECT_TO_IFACE       |
+                                          UCT_IFACE_FLAG_PENDING                |
+                                          UCT_IFACE_FLAG_GET_ZCOPY              |
+                                          UCT_IFACE_FLAG_PUT_ZCOPY              |
+                                          UCT_IFACE_FLAG_EVENT_SEND_COMP        |
                                           UCT_IFACE_FLAG_EVENT_RECV;
 
     iface_attr->cap.put.max_short       = 0;
