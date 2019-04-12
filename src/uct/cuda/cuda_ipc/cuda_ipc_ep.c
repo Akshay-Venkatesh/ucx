@@ -55,8 +55,8 @@ UCS_CLASS_DEFINE_DELETE_FUNC(uct_cuda_ipc_ep_t, uct_ep_t);
 #define uct_cuda_ipc_trace_data(_addr, _rkey, _fmt, ...)     \
     ucs_trace_data(_fmt " to %"PRIx64"(%+ld)", ## __VA_ARGS__, (_addr), (_rkey))
 
-#if (__CUDACC_VER_MAJOR__ >= 100000)
-static void CUDA_CB myHostFn(void *ipc_event)
+
+static void uct_cuda_ipc_common_cb(void *ipc_event)
 {
     uct_cuda_ipc_event_desc_t *cuda_ipc_event = (uct_cuda_ipc_event_desc_t *) ipc_event;
     int *print_int = (int *) &(cuda_ipc_event->done);
@@ -94,44 +94,18 @@ static void CUDA_CB myHostFn(void *ipc_event)
     }
 
 }
+
+#if (__CUDACC_VER_MAJOR__ >= 100000)
+static void CUDA_CB myHostFn(void *ipc_event)
+{
+    uct_cuda_ipc_common_cb(ipc_event);
+    return;
+}
 #else
 void CUDA_CB myHostCallback(CUstream hStream,  CUresult status, void *ipc_event)
 {
-    uct_cuda_ipc_event_desc_t *cuda_ipc_event = (uct_cuda_ipc_event_desc_t *) ipc_event;
-    int *print_int = (int *) &(cuda_ipc_event->done);
-    uct_cuda_ipc_ep_t *ep = cuda_ipc_event->ep;
-    uct_cuda_ipc_iface_t *iface = ucs_derived_of(ep->super.super.iface, uct_cuda_ipc_iface_t);
-    char dummy = 0;
-    int ret;
-
-    *print_int = 1; // do we need a mutex for this update?
-    for (;;) {
-        ret = sendto(iface->signal_fd, &dummy, sizeof(dummy), 0,
-                     (const struct sockaddr*)&(iface->signal_sockaddr),
-                     iface->signal_addrlen);
-        if (ucs_unlikely(ret < 0)) {
-            if (errno == EINTR) {
-                /* Interrupted system call - retry */
-                continue;
-            } if ((errno == EAGAIN) || (errno == ECONNREFUSED)) {
-                /* If we failed to signal because buffer is full - ignore the error
-                 * since it means the remote side would get a signal anyway.
-                 * If the remote side is not there - ignore the error as well.
-                 */
-                ucs_trace("failed to send wakeup signal: %m");
-                return;
-            } else {
-                ucs_warn("failed to send wakeup signal: %m");
-                return;
-            }
-        } else {
-            ucs_assert(ret == sizeof(dummy));
-            ucs_trace("sent wakeup from socket %d to %p", iface->signal_fd,
-                      (const struct sockaddr*)&(iface->signal_sockaddr));
-            return;
-        }
-    }
-
+    uct_cuda_ipc_common_cb(ipc_event);
+    return;
 }
 #endif
 
