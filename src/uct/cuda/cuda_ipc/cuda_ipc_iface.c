@@ -197,7 +197,7 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_arm(uct_iface_h tl_iface,
         return UCS_ERR_BUSY;
     } else if (ret == -1) {
         if (errno == EAGAIN) {
-            return UCS_OK; // is this a case where cbs should be added?
+	    goto add_cbs;
         } else if (errno == EINTR) {
             return UCS_ERR_BUSY;
         } else {
@@ -210,17 +210,19 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_arm(uct_iface_h tl_iface,
     }
 
  add_cbs:
-    for (i = 0; i < iface->device_count; i++) {
+    if (iface->streams_initialized) {
+	for (i = 0; i < iface->device_count; i++) {
 #if (__CUDACC_VER_MAJOR__ >= 100000)
-        status = UCT_CUDADRV_FUNC(cuLaunchHostFunc(iface->stream_d2d[i],
-                                                   myHostFn, iface));
+	    status = UCT_CUDADRV_FUNC(cuLaunchHostFunc(iface->stream_d2d[i],
+						       myHostFn, iface));
 #else
-        status = UCT_CUDADRV_FUNC(cuStreamAddCallback(iface->stream_d2d[i],
-                                                      myHostCallback, iface, 0));
+	    status = UCT_CUDADRV_FUNC(cuStreamAddCallback(iface->stream_d2d[i],
+							  myHostCallback, iface, 0));
 #endif
-        if (UCS_OK != status) {
-            return status;
-        }
+	    if (UCS_OK != status) {
+		return status;
+	    }
+	}
     }
     return UCS_OK;
 }
