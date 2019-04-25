@@ -135,19 +135,69 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_get(uct_iface_h tl_iface, int *f
     return UCS_OK;
 }
 
+static void uct_cuda_ipc_common_cb(void *cuda_ipc_iface)
+{
+    uct_cuda_ipc_iface_t *iface = cuda_ipc_iface;
+    char dummy = 0;
+    int ret;
+
+    for (;;) {
+        ret = sendto(iface->signal_fd, &dummy, sizeof(dummy), 0,
+                     (const struct sockaddr*)&(iface->signal_sockaddr),
+                     iface->signal_addrlen);
+        if (ucs_unlikely(ret < 0)) {
+            if (errno == EINTR) {
+                /* Interrupted system call - retry */
+                continue;
+            } if ((errno == EAGAIN) || (errno == ECONNREFUSED)) {
+                /* If we failed to signal because buffer is full - ignore the error
+                 * since it means the remote side would get a signal anyway.
+                 * If the remote side is not there - ignore the error as well.
+                 */
+                ucs_trace("failed to send wakeup signal: %m");
+                return;
+            } else {
+                ucs_warn("failed to send wakeup signal: %m");
+                return;
+            }
+        } else {
+            ucs_assert(ret == sizeof(dummy));
+            ucs_trace("sent wakeup from socket %d to %p", iface->signal_fd,
+                      (const struct sockaddr*)&(iface->signal_sockaddr));
+            return;
+        }
+    }
+}
+
+#if (__CUDACC_VER_MAJOR__ >= 100000)
+static void CUDA_CB myHostFn(void *iface)
+{
+    uct_cuda_ipc_common_cb(iface);
+    return;
+}
+#else
+void CUDA_CB myHostCallback(CUstream hStream,  CUresult status, void *iface)
+{
+    uct_cuda_ipc_common_cb(iface);
+    return;
+}
+#endif
+
 static ucs_status_t uct_cuda_ipc_iface_event_fd_arm(uct_iface_h tl_iface,
                                                     unsigned events)
 {
     uct_cuda_ipc_iface_t *iface = ucs_derived_of(tl_iface, uct_cuda_ipc_iface_t);
     char dummy[UCT_CUDA_IPC_IFACE_MAX_SIG_EVENTS]; /* pop multiple signals at once */
     int ret;
+    int i;
+    ucs_status_t status;
 
     ret = recvfrom(iface->signal_fd, &dummy, sizeof(dummy), 0, NULL, 0);
     if (ret > 0) {
         return UCS_ERR_BUSY;
     } else if (ret == -1) {
         if (errno == EAGAIN) {
-            return UCS_OK;
+            return UCS_OK; // is this a case where cbs should be added?
         } else if (errno == EINTR) {
             return UCS_ERR_BUSY;
         } else {
@@ -156,8 +206,23 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_arm(uct_iface_h tl_iface,
         }
     } else {
         ucs_assert(ret == 0);
-        return UCS_OK;
+        goto add_cbs;
     }
+
+ add_cbs:
+    for (i = 0; i < iface->device_count; i++) {
+#if (__CUDACC_VER_MAJOR__ >= 100000)
+        status = UCT_CUDADRV_FUNC(cuLaunchHostFunc(iface->stream_d2d[i],
+                                                   myHostFn, iface));
+#else
+        status = UCT_CUDADRV_FUNC(cuStreamAddCallback(iface->stream_d2d[i],
+                                                      myHostCallback, iface, 0));
+#endif
+        if (UCS_OK != status) {
+            return status;
+        }
+    }
+    return UCS_OK;
 }
 
 static UCS_F_ALWAYS_INLINE unsigned
@@ -170,18 +235,12 @@ uct_cuda_ipc_progress_event_q(uct_cuda_ipc_iface_t *iface,
     ucs_status_t status;
 
     ucs_queue_for_each_safe(cuda_ipc_event, iter, event_q, queue) {
-        //status = UCT_CUDADRV_FUNC(cuEventQuery(cuda_ipc_event->event));
-        //if (UCS_INPROGRESS == status) {
-        //    continue;
-        //} else if (UCS_OK != status) {
-        //    return status;
-        //}
-
-        if (0 == cuda_ipc_event->done) {
+        status = UCT_CUDADRV_FUNC(cuEventQuery(cuda_ipc_event->event));
+        if (UCS_INPROGRESS == status) {
             continue;
+        } else if (UCS_OK != status) {
+            return status;
         }
-
-        cuda_ipc_event->done = 0;
 
         ucs_queue_del_iter(event_q, iter);
         if (cuda_ipc_event->comp != NULL) {

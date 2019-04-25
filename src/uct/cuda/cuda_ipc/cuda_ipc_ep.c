@@ -56,59 +56,6 @@ UCS_CLASS_DEFINE_DELETE_FUNC(uct_cuda_ipc_ep_t, uct_ep_t);
     ucs_trace_data(_fmt " to %"PRIx64"(%+ld)", ## __VA_ARGS__, (_addr), (_rkey))
 
 
-static void uct_cuda_ipc_common_cb(void *ipc_event)
-{
-    uct_cuda_ipc_event_desc_t *cuda_ipc_event = (uct_cuda_ipc_event_desc_t *) ipc_event;
-    int *print_int = (int *) &(cuda_ipc_event->done);
-    uct_cuda_ipc_ep_t *ep = cuda_ipc_event->ep;
-    uct_cuda_ipc_iface_t *iface = ucs_derived_of(ep->super.super.iface, uct_cuda_ipc_iface_t);
-    char dummy = 0;
-    int ret;
-
-    *print_int = 1; // do we need a mutex for this update?
-    for (;;) {
-        ret = sendto(iface->signal_fd, &dummy, sizeof(dummy), 0,
-                     (const struct sockaddr*)&(iface->signal_sockaddr),
-                     iface->signal_addrlen);
-        if (ucs_unlikely(ret < 0)) {
-            if (errno == EINTR) {
-                /* Interrupted system call - retry */
-                continue;
-            } if ((errno == EAGAIN) || (errno == ECONNREFUSED)) {
-                /* If we failed to signal because buffer is full - ignore the error
-                 * since it means the remote side would get a signal anyway.
-                 * If the remote side is not there - ignore the error as well.
-                 */
-                ucs_trace("failed to send wakeup signal: %m");
-                return;
-            } else {
-                ucs_warn("failed to send wakeup signal: %m");
-                return;
-            }
-        } else {
-            ucs_assert(ret == sizeof(dummy));
-            ucs_trace("sent wakeup from socket %d to %p", iface->signal_fd,
-                      (const struct sockaddr*)&(iface->signal_sockaddr));
-            return;
-        }
-    }
-
-}
-
-#if (__CUDACC_VER_MAJOR__ >= 100000)
-static void CUDA_CB myHostFn(void *ipc_event)
-{
-    uct_cuda_ipc_common_cb(ipc_event);
-    return;
-}
-#else
-void CUDA_CB myHostCallback(CUstream hStream,  CUresult status, void *ipc_event)
-{
-    uct_cuda_ipc_common_cb(ipc_event);
-    return;
-}
-#endif
-
 static UCS_F_ALWAYS_INLINE ucs_status_t
 uct_cuda_ipc_post_cuda_async_copy(uct_ep_h tl_ep, uint64_t remote_addr,
                                   const uct_iov_t *iov, uct_rkey_t rkey,
@@ -170,26 +117,11 @@ uct_cuda_ipc_post_cuda_async_copy(uct_ep_h tl_ep, uint64_t remote_addr,
         return status;
     }
 
-    //status = UCT_CUDADRV_FUNC(cuEventRecord(cuda_ipc_event->event, stream));
-    //if (UCS_OK != status) {
-    //    ucs_mpool_put(cuda_ipc_event);
-    //    return status;
-    //}
-
-    ucs_assert(cuda_ipc_event->done == 0);
-    cuda_ipc_event->ep = ep;
-#if (__CUDACC_VER_MAJOR__ >= 100000)
-    status = UCT_CUDADRV_FUNC(cuLaunchHostFunc(stream, myHostFn, cuda_ipc_event));
+    status = UCT_CUDADRV_FUNC(cuEventRecord(cuda_ipc_event->event, stream));
     if (UCS_OK != status) {
+        ucs_mpool_put(cuda_ipc_event);
         return status;
     }
-#else
-    status = UCT_CUDADRV_FUNC(cuStreamAddCallback(stream, myHostCallback,
-                                                  cuda_ipc_event, 0));
-    if (UCS_OK != status) {
-        return status;
-    }
-#endif
 
     ucs_queue_push(outstanding_queue, &cuda_ipc_event->queue);
     cuda_ipc_event->comp        = comp;
