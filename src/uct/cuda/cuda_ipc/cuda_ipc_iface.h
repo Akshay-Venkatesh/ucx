@@ -29,9 +29,7 @@ typedef struct uct_cuda_ipc_iface {
     ucs_mpool_t      event_desc;              /* cuda event desc */
     ucs_queue_head_t outstanding_d2d_event_q; /* stream for outstanding d2d */
     int              device_count;
-    int              signal_fd;               /* get event notifications */
-    socklen_t          signal_addrlen;   /* address length of signaling socket */
-    struct sockaddr_un signal_sockaddr;  /* address of signaling socket */
+    int              eventfd;              /* get event notifications */
     int              streams_initialized;     /* indicates if stream created */
     CUstream         stream_d2d[UCT_CUDA_IPC_MAX_PEERS];
                                               /* per-peer stream */

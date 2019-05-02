@@ -10,6 +10,7 @@
 
 #include <ucs/type/class.h>
 #include <ucs/sys/string.h>
+#include <sys/eventfd.h>
 
 #define UCT_CUDA_IPC_IFACE_MAX_SIG_EVENTS 32 // why this value?
 
@@ -131,42 +132,32 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_get(uct_iface_h tl_iface, int *f
 {
     uct_cuda_ipc_iface_t *iface = ucs_derived_of(tl_iface, uct_cuda_ipc_iface_t);
 
-    *fd_p = iface->signal_fd;
+    *fd_p = iface->eventfd;
     return UCS_OK;
 }
 
 static void uct_cuda_ipc_common_cb(void *cuda_ipc_iface)
 {
     uct_cuda_ipc_iface_t *iface = cuda_ipc_iface;
-    char dummy = 0;
+    uint64_t dummy = 1;
     int ret;
 
-    for (;;) {
-        ret = sendto(iface->signal_fd, &dummy, sizeof(dummy), 0,
-                     (const struct sockaddr*)&(iface->signal_sockaddr),
-                     iface->signal_addrlen);
-        if (ucs_unlikely(ret < 0)) {
-            if (errno == EINTR) {
-                /* Interrupted system call - retry */
-                continue;
-            } if ((errno == EAGAIN) || (errno == ECONNREFUSED)) {
-                /* If we failed to signal because buffer is full - ignore the error
-                 * since it means the remote side would get a signal anyway.
-                 * If the remote side is not there - ignore the error as well.
-                 */
-                ucs_trace("failed to send wakeup signal: %m");
+    /* No error handling yet */
+    do {
+        ret = write(iface->eventfd, &dummy, sizeof(dummy));
+        if (ret == sizeof(dummy)) {
+            return;
+        } else if (ret == -1) {
+            if (errno == EAGAIN) {
                 return;
-            } else {
-                ucs_warn("failed to send wakeup signal: %m");
+            } else if (errno != EINTR) {
+                ucs_error("Signaling wakeup failed: %m");
                 return;
             }
         } else {
-            ucs_assert(ret == sizeof(dummy));
-            ucs_trace("sent wakeup from socket %d to %p", iface->signal_fd,
-                      (const struct sockaddr*)&(iface->signal_sockaddr));
-            return;
+            ucs_assert(ret == 0);
         }
-    }
+    } while (ret == 0);
 }
 
 #if (__CUDACC_VER_MAJOR__ >= 100000)
@@ -187,27 +178,31 @@ static ucs_status_t uct_cuda_ipc_iface_event_fd_arm(uct_iface_h tl_iface,
                                                     unsigned events)
 {
     uct_cuda_ipc_iface_t *iface = ucs_derived_of(tl_iface, uct_cuda_ipc_iface_t);
-    char dummy[UCT_CUDA_IPC_IFACE_MAX_SIG_EVENTS]; /* pop multiple signals at once */
     int ret;
     int i;
+    uint64_t dummy;
     ucs_status_t status;
 
-    ret = recvfrom(iface->signal_fd, &dummy, sizeof(dummy), 0, NULL, 0);
-    if (ret > 0) {
-        return UCS_ERR_BUSY;
-    } else if (ret == -1) {
-        if (errno == EAGAIN) {
-	    goto add_cbs;
-        } else if (errno == EINTR) {
-            return UCS_ERR_BUSY;
+    do {
+        ret = read(iface->eventfd, &dummy, sizeof(dummy));
+        if (ret == sizeof(dummy)) {
+            status = UCS_ERR_BUSY;
+	    return status;
+        } else if (ret == -1) {
+            if (errno == EAGAIN) {
+		goto add_cbs;
+            } else if (errno != EINTR) {
+                ucs_error("Read from internal event fd failed: %m");
+                status = UCS_ERR_IO_ERROR;
+                return status;
+            } else {
+		return UCS_ERR_BUSY;
+	    }
         } else {
-            ucs_error("failed to retrieve message from signal pipe: %m");
-            return UCS_ERR_IO_ERROR;
+            ucs_assert(ret == 0);
+	    goto add_cbs;
         }
-    } else {
-        ucs_assert(ret == 0);
-        goto add_cbs;
-    }
+    } while (ret != 0);
 
  add_cbs:
     if (iface->streams_initialized) {
@@ -357,9 +352,6 @@ static UCS_CLASS_INIT_FUNC(uct_cuda_ipc_iface_t, uct_md_h md, uct_worker_h worke
     uct_cuda_ipc_iface_config_t *config = NULL;
     ucs_status_t status;
     int dev_count;
-    struct sockaddr_un bind_addr;
-    socklen_t addrlen;
-    int ret;
 
     config = ucs_derived_of(tl_config, uct_cuda_ipc_iface_config_t);
     UCS_CLASS_CALL_SUPER_INIT(uct_base_iface_t, &uct_cuda_ipc_iface_ops, md, worker,
@@ -404,49 +396,18 @@ static UCS_CLASS_INIT_FUNC(uct_cuda_ipc_iface_t, uct_md_h md, uct_worker_h worke
         return UCS_ERR_IO_ERROR;
     }
 
-    /* Create a UNIX domain socket to send and receive wakeup signal from remote processes */
-    self->signal_fd = socket(AF_UNIX, SOCK_DGRAM, 0);
-    if (self->signal_fd < 0) {
-        ucs_error("Failed to create unix domain socket for signal: %m");
+    self->eventfd = -1;
+    self->eventfd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
+    if (self->eventfd == -1) {
+        ucs_error("Failed to create event fd: %m");
         status = UCS_ERR_IO_ERROR;
         goto err;
     }
 
-    /* Set the signal socket to non-blocking mode */
-    status = ucs_sys_fcntl_modfl(self->signal_fd, O_NONBLOCK, 0);
-    if (status != UCS_OK) {
-        goto err_close;
-    }
-
-    /* Bind the signal socket to automatic address */
-    bind_addr.sun_family = AF_UNIX;
-    memset(bind_addr.sun_path, 0, sizeof(bind_addr.sun_path));
-    ret = bind(self->signal_fd, (struct sockaddr*)&bind_addr, sizeof(sa_family_t));
-    if (ret < 0) {
-        ucs_error("Failed to auto-bind unix domain socket: %m");
-        status = UCS_ERR_IO_ERROR;
-        goto err_close;
-    }
-
-    addrlen = sizeof(struct sockaddr_un);
-    memset(&self->signal_sockaddr, 0, addrlen);
-    ret = getsockname(self->signal_fd,
-                      (struct sockaddr *)ucs_unaligned_ptr(&self->signal_sockaddr),
-                      &addrlen);
-    if (ret < 0) {
-        ucs_error("Failed to retrieve unix domain socket address: %m");
-        status = UCS_ERR_IO_ERROR;
-        goto err_close;
-    }
-
-    self->signal_addrlen = addrlen;
     self->streams_initialized = 0;
     ucs_queue_head_init(&self->outstanding_d2d_event_q);
 
     return UCS_OK;
-
-err_close:
-    close(self->signal_fd);
 err:
     return status;
 }
@@ -469,7 +430,7 @@ static UCS_CLASS_CLEANUP_FUNC(uct_cuda_ipc_iface_t)
     uct_base_iface_progress_disable(&self->super.super,
                                     UCT_PROGRESS_SEND | UCT_PROGRESS_RECV);
     ucs_mpool_cleanup(&self->event_desc, 1);
-    close(self->signal_fd);
+    if (-1 != self->eventfd) close(self->eventfd);
 }
 
 UCS_CLASS_DEFINE(uct_cuda_ipc_iface_t, uct_base_iface_t);
