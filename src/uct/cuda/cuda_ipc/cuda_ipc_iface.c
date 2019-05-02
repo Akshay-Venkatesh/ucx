@@ -352,6 +352,9 @@ static UCS_CLASS_INIT_FUNC(uct_cuda_ipc_iface_t, uct_md_h md, uct_worker_h worke
     uct_cuda_ipc_iface_config_t *config = NULL;
     ucs_status_t status;
     int dev_count;
+    struct sockaddr_un bind_addr;
+    socklen_t addrlen;
+    int ret;
 
     config = ucs_derived_of(tl_config, uct_cuda_ipc_iface_config_t);
     UCS_CLASS_CALL_SUPER_INIT(uct_base_iface_t, &uct_cuda_ipc_iface_ops, md, worker,
