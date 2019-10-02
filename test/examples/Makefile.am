@@ -44,7 +44,8 @@ ucp_hello_one_sided_SOURCES  = ucp_hello_one_sided.c
 ucp_hello_one_sided_CFLAGS   = $(BASE_CFLAGS) -pedantic
 ucp_hello_one_sided_CPPFLAGS = $(BASE_CPPFLAGS)
 ucp_hello_one_sided_LDADD    = $(top_builddir)/src/ucs/libucs.la \
-                               $(top_builddir)/src/ucp/libucp.la
+                               $(top_builddir)/src/ucp/libucp.la \
+                               $(CUDA_LDFLAGS) -lcudart
 
 uct_hello_world_SOURCES  = uct_hello_world.c
 uct_hello_world_CFLAGS   = $(BASE_CFLAGS) -pedantic

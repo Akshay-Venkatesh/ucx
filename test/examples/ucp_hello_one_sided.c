@@ -54,6 +54,7 @@
 #include <errno.h>   /* errno */
 #include <time.h>
 #include <signal.h>  /* raise */
+#include <cuda_runtime.h>
 
 struct msg {
     uint64_t        data_len;
@@ -71,6 +72,11 @@ enum ucp_test_mode_t {
     TEST_MODE_WAIT,
     TEST_MODE_EVENTFD
 } ucp_test_mode = TEST_MODE_PROBE;
+
+enum ucp_mem_type_t {
+    MEM_TYPE_HOST,
+    MEM_TYPE_CUDA
+} ucp_mem_type = MEM_TYPE_HOST;
 
 static struct err_handling {
     ucp_err_handling_mode_t ucp_err_mode;
@@ -196,14 +202,21 @@ static int run_ucx_client(ucp_worker_h ucp_worker, ucp_context_h ucp_context)
     ucp_mem_map_params_t ucp_memmap_params;
     void *rkey_buffer;
     size_t rkey_buffer_size;
+    char *win_tmp;
     char *win = NULL;
     struct msg *msg = 0;
     struct ucx_context *request = 0;
     size_t msg_len = 0;
     int ret = -1;
+    cudaError_t cuda_result;
     
     /* Allocate window */
-    win = malloc(test_string_length);
+    if (ucp_mem_type == MEM_TYPE_HOST) {
+        win = malloc(test_string_length);
+    } else {
+        cuda_result = cudaMalloc((void **) &win, test_string_length);
+        CHKERR_JUMP(cudaSuccess != cuda_result, "cudaMalloc\n", err);
+    }
 
     assert(win != NULL);
     ucp_memmap_params.field_mask = UCP_MEM_MAP_PARAM_FIELD_ADDRESS | 
@@ -306,21 +319,36 @@ static int run_ucx_client(ucp_worker_h ucp_worker, ucp_context_h ucp_context)
         printf("UCX data message was received\n");
     }
 
+
+    win_tmp = win;
+    if (ucp_mem_type == MEM_TYPE_CUDA) {
+	win_tmp = malloc(test_string_length);
+	cudaMemcpy(win_tmp, win, test_string_length, cudaMemcpyDeviceToHost);
+	cudaDeviceSynchronize();
+    }
+
     printf("\n\n----- WINDOW CONTENTS ----\n\n");
-    printf("%s", (char *)(win));
+    printf("%s", (char *)(win_tmp));
     printf("\n\n---------------------------\n\n");
 
     printf("\n\n----- UCP TEST SUCCESS ----\n\n");
     printf("%s", (char *)(msg + 1));
     printf("\n\n---------------------------\n\n");
 
+    if (ucp_mem_type == MEM_TYPE_CUDA) {
+	free(win_tmp);
+    }
     free(msg);
 
     ucp_rkey_buffer_release(rkey_buffer);
     status = ucp_mem_unmap(ucp_context, ucp_memh);
     CHKERR_JUMP(status != UCS_OK, "ucp_mem_unmap\n", err_ep);
 
-    free(win);
+    if (ucp_mem_type == MEM_TYPE_HOST) {
+        free(win);
+    } else {
+        cudaFree(win);
+    }
 
     ret = 0;
 
@@ -631,7 +659,7 @@ int parse_cmd(int argc, char * const argv[], char **server_name)
     err_handling_opt.ucp_err_mode   = UCP_ERR_HANDLING_MODE_NONE;
     err_handling_opt.failure        = 0;
 
-    while ((c = getopt(argc, argv, "wfben:p:s:h")) != -1) {
+    while ((c = getopt(argc, argv, "cwfben:p:s:h")) != -1) {
         switch (c) {
         case 'w':
             ucp_test_mode = TEST_MODE_WAIT;
@@ -641,6 +669,9 @@ int parse_cmd(int argc, char * const argv[], char **server_name)
             break;
         case 'b':
             ucp_test_mode = TEST_MODE_PROBE;
+            break;
+        case 'c':
+            ucp_mem_type = MEM_TYPE_CUDA;
             break;
         case 'e':
             err_handling_opt.ucp_err_mode   = UCP_ERR_HANDLING_MODE_PEER;
