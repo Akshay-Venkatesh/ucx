@@ -395,6 +395,8 @@ static int run_ucx_server(ucp_worker_h ucp_worker, ucp_context_h ucp_context)
     ucp_rkey_h rkey;
     size_t rkey_buffer_size;
     size_t remote_len;
+    cudaError_t cuda_result;
+    char *win_tmp;
     char *win = NULL;
     struct msg *msg = 0;
     struct ucx_context *request = 0;
@@ -463,14 +465,29 @@ static int run_ucx_server(ucp_worker_h ucp_worker, ucp_context_h ucp_context)
     status = ucp_ep_rkey_unpack(client_ep, rkey_buffer, &rkey);
     CHKERR_JUMP(status != UCS_OK, "ucp_ep_rkey_unpack\n", err);
 
-    win = malloc(remote_len);
+    if (ucp_mem_type == MEM_TYPE_HOST) {
+        win = malloc(remote_len);
+    } else {
+        cuda_result = cudaMalloc((void **) &win, remote_len);
+        CHKERR_JUMP(cudaSuccess != cuda_result, "cudaMalloc\n", err);
+    }
     assert(win != NULL);
 
-    generate_test_string((char *)win, remote_len);
+    win_tmp = win;
+    if (ucp_mem_type == MEM_TYPE_CUDA) {
+	win_tmp = malloc(remote_len);
+    }
+    generate_test_string((char *)win_tmp, remote_len);
 
     printf("\n\n----- WINDOW CONTENTS ----\n\n");
-    printf("%s", (char *)(win));
+    printf("%s", (char *)(win_tmp));
     printf("\n\n---------------------------\n\n");
+
+    if (ucp_mem_type == MEM_TYPE_CUDA) {
+	cudaMemcpy(win, win_tmp, remote_len, cudaMemcpyHostToDevice);
+	cudaDeviceSynchronize();
+	free(win_tmp);
+    }
 
     status = ucp_put_nbi(client_ep, win, remote_len, (uint64_t) remote_addr, rkey);
 
