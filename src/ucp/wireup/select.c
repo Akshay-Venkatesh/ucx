@@ -1370,6 +1370,7 @@ ucp_wireup_construct_lanes(const ucp_wireup_select_params_t *select_params,
     ucp_md_index_t md_index;
     ucp_lane_index_t lane;
     ucp_lane_index_t i;
+    int mm_unit_idx;
 
     key->num_lanes = select_ctx->num_lanes;
     /* Construct the endpoint configuration key:
@@ -1396,7 +1397,9 @@ ucp_wireup_construct_lanes(const ucp_wireup_select_params_t *select_params,
             key->rma_lanes[lane] = lane;
         }
         if (select_ctx->lane_descs[lane].usage & UCP_WIREUP_LANE_USAGE_RMA_BW) {
-            key->rma_bw_lanes[lane] = lane;
+	    for (mm_unit_idx = 0; mm_unit_idx < UCP_MAX_MM_UNITS; mm_unit_idx++) {
+                key->rma_bw_lanes[mm_unit_idx][lane] = lane;
+	    }
         }
         if (select_ctx->lane_descs[lane].usage & UCP_WIREUP_LANE_USAGE_AMO) {
             key->amo_lanes[lane] = lane;
@@ -1412,8 +1415,10 @@ ucp_wireup_construct_lanes(const ucp_wireup_select_params_t *select_params,
                 ucp_wireup_compare_lane_am_bw_score, select_ctx->lane_descs);
     ucs_qsort_r(key->rma_lanes, UCP_MAX_LANES, sizeof(ucp_lane_index_t),
                 ucp_wireup_compare_lane_rma_score, select_ctx->lane_descs);
-    ucs_qsort_r(key->rma_bw_lanes, UCP_MAX_LANES, sizeof(ucp_lane_index_t),
-                ucp_wireup_compare_lane_rma_bw_score, select_ctx->lane_descs);
+    for (mm_unit_idx = 0; mm_unit_idx < UCP_MAX_MM_UNITS; mm_unit_idx++) {
+        ucs_qsort_r(key->rma_bw_lanes[mm_unit_idx], UCP_MAX_LANES, sizeof(ucp_lane_index_t),
+                    ucp_wireup_compare_lane_rma_bw_score, select_ctx->lane_descs);
+    }
     ucs_qsort_r(key->amo_lanes, UCP_MAX_LANES, sizeof(ucp_lane_index_t),
                 ucp_wireup_compare_lane_amo_score, select_ctx->lane_descs);
 
@@ -1426,9 +1431,9 @@ ucp_wireup_construct_lanes(const ucp_wireup_select_params_t *select_params,
 
     /* add to map first UCP_MAX_OP_MDS fastest MD's */
     for (i = 0;
-         (key->rma_bw_lanes[i] != UCP_NULL_LANE) &&
+         (key->rma_bw_lanes[0][i] != UCP_NULL_LANE) &&
          (ucs_popcount(key->rma_bw_md_map) < UCP_MAX_OP_MDS); i++) {
-        lane = key->rma_bw_lanes[i];
+        lane = key->rma_bw_lanes[0][i];
         rsc_index = select_ctx->lane_descs[lane].rsc_index;
         md_index  = context->tl_rscs[rsc_index].md_index;
 

@@ -860,7 +860,7 @@ static ucs_status_t ucp_rndv_pipeline(ucp_request_t *sreq, ucp_rndv_rtr_hdr_t *r
 
     /* check if there are rma_bw lanes (for get_zcopy) on memtype endpoint */
     mem_type_ep       = worker->mem_type_ep[sreq->send.mem_type];
-    mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0];
+    mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0][0];
     if (mem_type_rma_lane == UCP_NULL_LANE) {
         return UCS_ERR_UNSUPPORTED;
     }

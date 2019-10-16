@@ -1258,8 +1258,8 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
     config->tag.rndv.min_get_zcopy = 0;
     rndv_max_bw = 0;
     for (i = 0; (i < config->key.num_lanes) &&
-                (config->key.rma_bw_lanes[i] != UCP_NULL_LANE); ++i) {
-        lane      = config->key.rma_bw_lanes[i];
+                (config->key.rma_bw_lanes[0][i] != UCP_NULL_LANE); ++i) {
+        lane      = config->key.rma_bw_lanes[0][i];
         rsc_index = config->key.lanes[lane].rsc_index;
 
         if (rsc_index != UCP_NULL_RESOURCE) {
@@ -1276,8 +1276,8 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
 
     if (rndv_max_bw > 0) {
         for (i = 0; (i < config->key.num_lanes) &&
-                    (config->key.rma_bw_lanes[i] != UCP_NULL_LANE); ++i) {
-            lane      = config->key.rma_bw_lanes[i];
+                    (config->key.rma_bw_lanes[0][i] != UCP_NULL_LANE); ++i) {
+            lane      = config->key.rma_bw_lanes[0][i];
             rsc_index = config->key.lanes[lane].rsc_index;
 
             if (rsc_index != UCP_NULL_RESOURCE) {
@@ -1359,7 +1359,7 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
                  * tag-matching protocols */
                 /* TODO: set threshold level based on all available lanes */
                 ucp_ep_config_set_rndv_thresh(worker, config,
-                                              config->key.rma_bw_lanes,
+                                              config->key.rma_bw_lanes[0],
                                               UCT_IFACE_FLAG_GET_ZCOPY,
                                               max_rndv_thresh);
                 config->tag.eager                      = config->am;
@@ -1577,7 +1577,7 @@ void ucp_ep_config_lane_info_str(ucp_context_h context,
         p += strlen(p);
     }
 
-    prio = ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes, lane);
+    prio = ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes[0], lane);
     if (prio != -1) {
         snprintf(p, endp - p, " rma_bw#%d", prio);
         p += strlen(p);

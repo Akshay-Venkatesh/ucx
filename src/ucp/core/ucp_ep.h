@@ -120,7 +120,7 @@ typedef struct ucp_ep_config_key {
     ucp_lane_index_t       rma_lanes[UCP_MAX_LANES];
 
     /* Lanes for high-bw memory access, sorted by priority, highest first */
-    ucp_lane_index_t       rma_bw_lanes[UCP_MAX_LANES];
+    ucp_lane_index_t       rma_bw_lanes[UCP_MAX_MM_UNITS][UCP_MAX_LANES];
 
     /* Lanes for atomic operations, sorted by priority, highest first */
     ucp_lane_index_t       amo_lanes[UCP_MAX_LANES];

@@ -494,6 +494,6 @@ ucp_lane_index_t ucp_rkey_get_rma_bw_lane(ucp_rkey_h rkey, ucp_ep_h ep,
 {
     ucp_ep_config_t *config = ucp_ep_config(ep);
     return ucp_config_find_rma_lane(ep->worker->context, config, mem_type,
-                                    config->key.rma_bw_lanes, rkey,
+                                    config->key.rma_bw_lanes[0], rkey,
                                     ignore, uct_rkey_p);
 }

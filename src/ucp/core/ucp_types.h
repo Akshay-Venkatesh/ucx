@@ -30,6 +30,8 @@ typedef ucp_rsc_index_t              ucp_md_index_t;
 #define UCP_MAX_OP_MDS               4  /* maximal number of MDs per single op */
 UCP_UINT_TYPE(UCP_MD_INDEX_BITS)     ucp_md_map_t;
 
+#define UCP_MAX_MM_UNITS             32
+
 /* Lanes */
 #define UCP_MAX_LANES                6
 #define UCP_NULL_LANE                ((ucp_lane_index_t)-1)

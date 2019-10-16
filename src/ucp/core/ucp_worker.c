@@ -442,11 +442,12 @@ static unsigned ucp_worker_iface_err_handle_progress(void *arg)
     key.wireup_lane        = 0;
     key.tag_lane           = 0;
     key.rma_lanes[0]       = 0;
-    key.rma_bw_lanes[0]    = 0;
     key.amo_lanes[0]       = 0;
     key.lanes[0].rsc_index = UCP_NULL_RESOURCE;
     key.num_lanes          = 1;
     key.status             = status;
+
+    memset(key.rma_bw_lanes, 0, sizeof(key.rma_bw_lanes));
 
     status = ucp_worker_get_ep_config(worker, &key, 0, &ucp_ep->cfg_index);
     if (status != UCS_OK) {
@@ -1461,6 +1462,20 @@ static char* ucp_worker_add_feature_rsc(ucp_context_h context,
     return p;
 }
 
+static int ucp_ep_config_check_all_mm_units(const ucp_ep_config_key_t *key, ucp_lane_index_t lane)
+{
+    int mm_unit_idx;
+    
+    for (mm_unit_idx = 0; mm_unit_idx < UCP_MAX_MM_UNITS; mm_unit_idx++) {
+        if (ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes[mm_unit_idx], lane) >= 0) {
+	    return 1;
+	}
+    }
+
+    return 0;
+
+}
+
 static void ucp_worker_print_used_tls(const ucp_ep_config_key_t *key,
                                       ucp_context_h context,
                                       ucp_ep_cfg_index_t config_idx)
@@ -1486,7 +1501,7 @@ static void ucp_worker_print_used_tls(const ucp_ep_config_key_t *key,
     for (lane = 0; lane < key->num_lanes; ++lane) {
         if (((key->am_lane == lane) || (lane == key->tag_lane) ||
             (ucp_ep_config_get_multi_lane_prio(key->am_bw_lanes, lane) >= 0)  ||
-            (ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes, lane) >= 0)) &&
+            ucp_ep_config_check_all_mm_units(key, lane) ) &&
             (context->config.features & UCP_FEATURE_TAG)) {
             tag_lanes_map |= UCS_BIT(lane);
         }
