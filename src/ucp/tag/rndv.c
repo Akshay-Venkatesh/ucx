@@ -849,6 +849,7 @@ static ucs_status_t ucp_rndv_pipeline(ucp_request_t *sreq, ucp_rndv_rtr_hdr_t *r
     ucp_rsc_index_t md_index;
     ucs_status_t status;
     int i, num_frags;
+    int mm_unit_idx;
     size_t frag_size, length;
     size_t offset;
 
@@ -866,7 +867,8 @@ static ucs_status_t ucp_rndv_pipeline(ucp_request_t *sreq, ucp_rndv_rtr_hdr_t *r
     /* TODO: instead of using dummy memory unit (0) use memory unit associated
      * with the source pointer to pick the right rma_bw_lanes */
     /* TODO: plug ptr->(memory unit) code here */
-    mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0][0];
+    mm_unit_idx = 0;
+    mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[mm_unit_idx][0];
     if (mem_type_rma_lane == UCP_NULL_LANE) {
         return UCS_ERR_UNSUPPORTED;
     }
