@@ -91,6 +91,7 @@ void ucp_rkey_resolve_inner(ucp_rkey_h rkey, ucp_ep_h ep);
 
 ucp_lane_index_t ucp_rkey_get_rma_bw_lane(ucp_rkey_h rkey, ucp_ep_h ep,
                                           ucs_memory_type_t mem_type,
+					  void *buffer,
                                           uct_rkey_t *uct_rkey_p,
                                           ucp_lane_map_t ignore);
 

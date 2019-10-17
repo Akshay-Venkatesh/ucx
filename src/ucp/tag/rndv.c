@@ -270,6 +270,7 @@ static void ucp_rndv_get_lanes_count(ucp_request_t *req)
     }
 
     while ((lane = ucp_rkey_get_rma_bw_lane(req->send.rndv_get.rkey, ep, req->send.mem_type,
+                                            req->send.buffer,
                                             &uct_rkey, map)) != UCP_NULL_LANE) {
         req->send.rndv_get.lane_count++;
         map |= UCS_BIT(lane);
@@ -290,6 +291,7 @@ static ucp_lane_index_t ucp_rndv_get_next_lane(ucp_request_t *rndv_req, uct_rkey
     ucp_lane_index_t lane;
 
     lane = ucp_rkey_get_rma_bw_lane(rndv_req->send.rndv_get.rkey, ep, rndv_req->send.mem_type,
+                                    rndv_req->send.buffer,
                                     uct_rkey, rndv_req->send.rndv_get.lanes_map);
 
     if ((lane == UCP_NULL_LANE) && (rndv_req->send.rndv_get.lanes_map != 0)) {
@@ -298,6 +300,7 @@ static ucp_lane_index_t ucp_rndv_get_next_lane(ucp_request_t *rndv_req, uct_rkey
          * reset used lanes map to NULL and iterate it again */
         rndv_req->send.rndv_get.lanes_map = 0;
         lane = ucp_rkey_get_rma_bw_lane(rndv_req->send.rndv_get.rkey, ep, rndv_req->send.mem_type,
+                                        rndv_req->send.buffer,
                                         uct_rkey, rndv_req->send.rndv_get.lanes_map);
     }
 
@@ -860,6 +863,9 @@ static ucs_status_t ucp_rndv_pipeline(ucp_request_t *sreq, ucp_rndv_rtr_hdr_t *r
 
     /* check if there are rma_bw lanes (for get_zcopy) on memtype endpoint */
     mem_type_ep       = worker->mem_type_ep[sreq->send.mem_type];
+    /* TODO: instead of using dummy memory unit (0) use memory unit associated
+     * with the source pointer to pick the right rma_bw_lanes */
+    /* TODO: plug ptr->(memory unit) code here */
     mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0][0];
     if (mem_type_rma_lane == UCP_NULL_LANE) {
         return UCS_ERR_UNSUPPORTED;
@@ -947,6 +953,7 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_rndv_rtr_handler,
 
         sreq->send.lane = ucp_rkey_get_rma_bw_lane(sreq->send.rndv_put.rkey, ep,
                                                    sreq->send.mem_type,
+                                                   sreq->send.buffer,
                                                    &sreq->send.rndv_put.uct_rkey, 0);
         if (sreq->send.lane != UCP_NULL_LANE) {
             /*

@@ -489,11 +489,15 @@ void ucp_rkey_resolve_inner(ucp_rkey_h rkey, ucp_ep_h ep)
 
 ucp_lane_index_t ucp_rkey_get_rma_bw_lane(ucp_rkey_h rkey, ucp_ep_h ep,
                                           ucs_memory_type_t mem_type,
+					  void *buffer,
                                           uct_rkey_t *uct_rkey_p,
                                           ucp_lane_map_t ignore)
 {
     ucp_ep_config_t *config = ucp_ep_config(ep);
+    int mm_unit_idx = (NULL == buffer) ? 0 : 0; /* TODO: plugin buffer -> mm_unit code */
+
+    ucs_trace("rkey %p , buffer %p mm_unit_idx %d", rkey, buffer, mm_unit_idx);
     return ucp_config_find_rma_lane(ep->worker->context, config, mem_type,
-                                    config->key.rma_bw_lanes[0], rkey,
+                                    config->key.rma_bw_lanes[mm_unit_idx], rkey,
                                     ignore, uct_rkey_p);
 }
