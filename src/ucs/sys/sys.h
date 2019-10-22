@@ -382,6 +382,7 @@ ucs_status_t ucs_sys_get_mm_units(ucs_mm_unit_t **mm_units, int *num_mm_units);
  */
 ucs_status_t ucs_sys_free_mm_units(ucs_mm_unit_t *mm_units);
 
+
 /**
  * Detect system devices such as HCAs, GPUs, and other PCIe devices
  * and return a list of such devices
@@ -400,6 +401,18 @@ ucs_status_t ucs_sys_get_sys_devices(ucs_sys_device_t **sys_devices, int *num_sy
  * @return UCS_OK or error in case of failure.
  */
 ucs_status_t ucs_sys_free_sys_devices(ucs_sys_device_t *sys_devices);
+
+
+/**
+ * Return relative distance between a memory unit and a system device
+ *
+ * @param [in]  sys_device System device structure such as GPU/HCA
+ * @param [in]  mm_unit    Memory Unit structue like CPU/GPU memory
+ * @param [out] distance   Abstract distance between mm_unit and sys_device
+ * @return UCS_OK or error in case of failure.
+ */
+ucs_status_t ucs_get_sys_get_distance(ucs_sys_device_t *sys_device, ucs_mm_unit_t *mm_unit,
+                                      int *distance);
 
 END_C_DECLS
 

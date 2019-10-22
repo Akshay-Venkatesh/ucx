@@ -1150,6 +1150,53 @@ static ucs_status_t ucs_release_paths(char *fpaths)
     return UCS_OK;
 }
 
+/*
+ * Expects path_name to be in the form /sys/bus/pci/drivers/nvidia/0000:86:00.0
+ * The function appends `numa_node` and returns the contents of say
+ * /sys/bus/pci/drivers/nvidia/0000:86:00.0/numa_node
+ */
+static int ucs_get_numa_node(char *path_name)
+{
+    char *buf = NULL;
+    char name[UCS_FPATH_MAX_LEN];
+    struct stat statbuf;
+    int fd;
+    int numa_node;
+
+    strcpy(name, path_name);
+    strcat(name, "/");
+    strcat(name, "numa_node");
+
+    numa_node = -1;
+    fd = open(name, O_RDONLY);
+    if (0 != stat(name, &statbuf)) {
+        ucs_error("stat");
+	goto out1;
+    }
+
+    buf = malloc(sizeof(char) * statbuf.st_size);
+    if (NULL == buf) {
+        ucs_error("malloc");
+	goto out2;
+    }
+
+    if (-1 == read(fd, buf, statbuf.st_size)) {
+        ucs_error("read");
+	goto out3;
+    }
+
+    numa_node = atoi(buf);
+
+out3:
+    free(buf);
+
+out2:
+    close(fd);
+
+out1:
+    return numa_node;
+}
+
 static int ucs_get_bus_id(char *name)
 {
     char delim[] = ":";
@@ -1233,6 +1280,7 @@ ucs_status_t ucs_sys_get_mm_units(ucs_mm_unit_t **mm_units, int *num_units)
             strcat(mm_unit_p->fpath, "/");
             strcat(mm_unit_p->fpath, src);
             mm_unit_p->bus_id       = (mm_idx == UCS_MM_UNIT_CPU) ? -1 : ucs_get_bus_id(src);
+            mm_unit_p->numa_node    = (mm_idx == UCS_MM_UNIT_CPU) ? i : ucs_get_numa_node(src);
             mm_unit_p->id           = mm_unit_idx++;
             mm_unit_p->mm_unit_type = mm_idx;
             mm_unit_p               = mm_unit_p + 1;
@@ -1296,6 +1344,7 @@ ucs_status_t ucs_sys_get_sys_devices(ucs_sys_device_t **sys_devices, int *num_un
             strcat(sys_dev_p->fpath, "/");
             strcat(sys_dev_p->fpath, src);
             sys_dev_p->bus_id       = ucs_get_bus_id(src);
+            sys_dev_p->numa_node    = ucs_get_numa_node(src); /* TODO: handle numa_node = -1 */
             sys_dev_p->id           = sys_dev_idx++;
             sys_dev_p->sys_dev_type = sys_idx;
             sys_dev_p               = sys_dev_p + 1;
@@ -1317,12 +1366,27 @@ ucs_status_t ucs_sys_free_sys_devices(ucs_sys_device_t *sys_devices)
     return UCS_OK;
 }
 
+ucs_status_t ucs_get_sys_get_distance(ucs_sys_device_t *sys_device,
+                                      ucs_mm_unit_t *mm_unit, int *distance)
+{
+    if (UCS_MM_UNIT_CPU == mm_unit->mm_unit_type) {
+        /* say we pass mm_unit corresponding to NUMA node 0 and a NIC whose
+         * numa_node states 0 then distance is set as 0;
+         * on the other hand, if the NIC's numa node was 1, then distance is set as 1 */
+        *distance = abs(mm_unit->numa_node - sys_device->numa_node);
+    } else if (UCS_MM_UNIT_CUDA == mm_unit->mm_unit_type) {
+        /* Not handled yet */
+    }
+
+    return UCS_OK;
+}
+
 int ucs_get_cpu_mm_index(void *ptr, ucs_mm_unit_t *mm_units, int num_units)
 {
     int mm_index = -1;
 
     get_mempolicy(&mm_index, NULL, 0, ptr, MPOL_F_NODE | MPOL_F_ADDR);
-    printf("mm_index = %d\n", mm_index);
+    ucs_debug("ptr = %p mm_index = %d", ptr, mm_index);
 
     /* this is a shortcut that works only if numa node 0, 1, ... n
      * occupy the first n indices of mm_unit array
