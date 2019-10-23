@@ -1629,6 +1629,7 @@ ucs_status_t ucp_worker_create(ucp_context_h context,
     int num_mm_units;
     int num_sys_devices;
     int xx;
+    int yy;
     ucs_mm_unit_t *mm_units;
     ucs_sys_device_t *sys_devices;
 
@@ -1702,12 +1703,21 @@ ucs_status_t ucp_worker_create(ucp_context_h context,
     for (xx = 0; xx < num_mm_units; xx++) {
         ucs_debug("mm_unit = %s", mm_units[xx].fpath);
     }
-    ucs_sys_free_mm_units(mm_units);
 
     ucs_sys_get_sys_devices(&sys_devices, &num_sys_devices);
     for (xx = 0; xx < num_sys_devices; xx++) {
         ucs_debug("sys_unit = %s", sys_devices[xx].fpath);
     }
+
+    for (xx = 0; xx < num_mm_units; xx++) {
+        for (yy = 0; yy < num_sys_devices; yy++) {
+             ucs_sys_dev_dist_enum_t distance;
+             ucs_sys_get_dev_distance(&sys_devices[yy],
+                                      &mm_units[xx], 
+                                      &distance);
+        }
+    }
+    ucs_sys_free_mm_units(mm_units);
     ucs_sys_free_sys_devices(sys_devices);
 
     /* Create statistics */

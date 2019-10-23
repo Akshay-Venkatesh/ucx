@@ -411,8 +411,8 @@ ucs_status_t ucs_sys_free_sys_devices(ucs_sys_device_t *sys_devices);
  * @param [out] distance   Abstract distance between mm_unit and sys_device
  * @return UCS_OK or error in case of failure.
  */
-ucs_status_t ucs_get_sys_get_distance(ucs_sys_device_t *sys_device, ucs_mm_unit_t *mm_unit,
-                                      int *distance);
+ucs_status_t ucs_sys_get_dev_distance(ucs_sys_device_t *sys_device, ucs_mm_unit_t *mm_unit,
+                                      ucs_sys_dev_dist_enum_t *distance);
 
 END_C_DECLS
 

@@ -115,6 +115,18 @@ typedef enum {
 
 
 /**
+ * PCIe distance categories and answers what needs to be crossed to reach
+ */
+typedef enum {
+    UCS_SYS_DEV_DIST_PIX = 0, /* traverse 1 PCIe switch */
+    UCS_SYS_DEV_DIST_PXB,     /* traverse >1 PCIe switches */
+    UCS_SYS_DEV_DIST_PHB,     /* traverse host bridge */
+    UCS_SYS_DEV_DIST_NODE,    /* traverse host bridge in the same numa node */
+    UCS_SYS_DEV_DIST_SYS      /* traverse CPU interconnect (like QPI) */
+} ucs_sys_dev_dist_enum_t;
+
+
+/**
  * Structure type for array configuration. Should be used inside the configuration
  * structure declaration.
  */

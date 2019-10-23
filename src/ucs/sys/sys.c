@@ -43,6 +43,8 @@
 #define UCS_DEFAULT_MEM_FREE       640000
 #define UCS_PROCESS_SMAPS_FILE     "/proc/self/smaps"
 
+#define UCS_MAX_PATH_DEPTH         64
+
 static char *ucs_mm_unit_paths[] = {
     [UCS_MM_UNIT_CPU]     = "/sys/devices/system/node",
     [UCS_MM_UNIT_CUDA]    = "/sys/bus/pci/drivers/nvidia",
@@ -1263,12 +1265,10 @@ static int ucs_get_rpath(char *name, char *rpath)
         strcat(tmp_path, delim);
     } while (rval != NULL);
 
-    printf("tmp_path = %s\n", tmp_path);
     if (NULL == realpath(tmp_path, rpath)) {
         ucs_error("realpath %m");
         return -1;
     }
-    printf("tmp path = %s, resolved path = %s\n", tmp_path, rpath);
 
     ucs_free(str_p);
 
@@ -1413,17 +1413,109 @@ ucs_status_t ucs_sys_free_sys_devices(ucs_sys_device_t *sys_devices)
     return UCS_OK;
 }
 
-ucs_status_t ucs_get_sys_get_distance(ucs_sys_device_t *sys_device,
-                                      ucs_mm_unit_t *mm_unit, int *distance)
+ucs_status_t ucs_get_path_info(char *name1, char *name2,
+                               int *rdepth1, int *rdepth2, int *variation_position)
 {
-    if (UCS_MM_UNIT_CPU == mm_unit->mm_unit_type) {
-        /* say we pass mm_unit corresponding to NUMA node 0 and a NIC whose
-         * numa_node states 0 then distance is set as 0;
-         * on the other hand, if the NIC's numa node was 1, then distance is set as 1 */
-        *distance = abs(mm_unit->numa_node - sys_device->numa_node);
-    } else if (UCS_MM_UNIT_CUDA == mm_unit->mm_unit_type) {
-        /* Not handled yet */
+    int depth1   = 0;
+    int depth2   = 0;
+    int min_depth;
+    int depth_variation;
+    int offset1[UCS_MAX_PATH_DEPTH];
+    int offset2[UCS_MAX_PATH_DEPTH];
+    int i;
+
+    depth1 = 0;
+    depth2 = 0;
+    
+    for (i = 0; i < strlen(name1); i++) {
+        if (name1[i] == '/') {
+            offset1[depth1++] = i + 1;
+        }
     }
+    
+    for (i = 0; i < strlen(name2); i++) {
+        if (name2[i] == '/') {
+            offset2[depth2++] = i + 1;
+        }
+    }
+    
+    min_depth = depth1 < depth2 ? depth1 : depth2;
+
+    for (i = 0; i < min_depth; i++) {
+        if ((offset1[i + 1] - offset1[i]) == (offset2[i + 1] - offset2[i])) {
+            if (!strncmp((char *)name1 + offset1[i], (char *)name2 + offset2[i], 
+                (offset2[i + 1] - offset2[i]))) {
+                depth_variation++;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    *rdepth1 = depth1;
+    *rdepth2 = depth2;
+    *variation_position = depth_variation;
+
+    return UCS_OK;
+
+}
+
+ucs_status_t ucs_sys_get_dev_distance(ucs_sys_device_t *sys_device,
+                                      ucs_mm_unit_t *mm_unit, 
+                                      ucs_sys_dev_dist_enum_t *distance)
+{
+    int numa_distance = abs(mm_unit->numa_node - sys_device->numa_node);
+    int rdepth1, rdepth2, variation_position;
+
+    if (UCS_MM_UNIT_CPU == mm_unit->mm_unit_type) {
+        *distance = (numa_distance == 0) ? UCS_SYS_DEV_DIST_PIX : UCS_SYS_DEV_DIST_SYS;
+    } else if (UCS_MM_UNIT_CUDA == mm_unit->mm_unit_type) {
+        if (numa_distance > 0) {
+            /* 
+             * Crossing QPI
+             * /sys/devices/pci0000:00/{0000:00:02.0}/0000:03:00.0/0000:04:0c.0/pci_bus/0000:07
+             * /sys/devices/pci0000:80/{0000:80:02.0}/0000:82:00.0/0000:83:04.0/pci_bus/0000:84
+             */
+            *distance = UCS_SYS_DEV_DIST_SYS;
+        } else {
+            ucs_get_path_info(sys_device->rpath, mm_unit->rpath,
+                              &rdepth1, &rdepth2, &variation_position);
+            if ((rdepth1 == rdepth2) && (variation_position == (rdepth1 - 3))) {
+                /*
+                 * Crossing a single switch 
+                 * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/{0000:04:0c.0}/pci_bus/0000:07
+                 * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/{0000:04:04.0}/pci_bus/0000:05
+                 * => depths should match but depth - 3 differs
+                 */
+                *distance = UCS_SYS_DEV_DIST_PIX;
+            } else if (variation_position == 3) {
+                 /*
+                  * Crossing Host Bridge
+                  * /sys/devices/pci0000:00/{0000:00:02.0}/0000:03:00.0/0000:04:0c.0/pci_bus/0000:07
+                  * /sys/devices/pci0000:00/{0000:00:03.0}/0000:08:00.0/0000:09:0c.0/pci_bus/0000:0c
+                  *
+                  * /sys/devices/pci0000:80/{0000:80:03.0}/0000:82:00.0/0000:83:10.0/pci_bus/0000:85
+                  * /sys/devices/pci0000:80/{0000:80:01.0}/pci_bus/0000:81
+                  *
+                  * => depths may or may not match but depth 4 varies
+                  */
+                *distance = UCS_SYS_DEV_DIST_PHB;
+            } else {
+                  /* If not the above 2 cases, then assume multiple switches */
+                  /*
+                   * TODO: Differentiate between NODE/PXB cases
+                   * Crossing a multiple switches 
+                   * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/0000:04:0c.0/pci_bus/0000:07
+                   * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/0000:05:04.0/pci_bus/0000:08
+                   */
+                *distance = UCS_SYS_DEV_DIST_NODE;
+            }
+        }
+    }
+
+    ucs_debug("distance between %s %s = %d", mm_unit->rpath, sys_device->rpath, *distance);
 
     return UCS_OK;
 }
