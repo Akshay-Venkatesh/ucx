@@ -152,6 +152,7 @@ typedef struct ucs_mm_unit {
     unsigned int       bus_id;                   /**< bus ID of of the device if applicable*/
     unsigned int       numa_node;                /**< NUMA node assoicated with the device*/
     char               fpath[UCS_FPATH_MAX_LEN];
+    char               rpath[UCS_FPATH_MAX_LEN];
 } ucs_mm_unit_t;
 
 /**
@@ -164,6 +165,7 @@ typedef struct ucs_sys_device {
     unsigned int          bus_id;                   /**< bus ID of of the device*/
     unsigned int          numa_node;                /**< NUMA node assoicated with the device*/
     char                  fpath[UCS_FPATH_MAX_LEN];
+    char                  rpath[UCS_FPATH_MAX_LEN];
 } ucs_sys_device_t;
 
 #endif /* TYPES_H_ */

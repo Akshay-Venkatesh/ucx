@@ -1170,7 +1170,7 @@ static int ucs_get_numa_node(char *path_name)
     numa_node = -1;
     fd = open(name, O_RDONLY);
     if (0 != stat(name, &statbuf)) {
-        ucs_error("stat");
+        ucs_error("stat %m name = %s", name);
 	goto out1;
     }
 
@@ -1238,6 +1238,44 @@ static int ucs_get_bus_id(char *name)
     return bus_id;
 }
 
+static int ucs_get_rpath(char *name, char *rpath)
+{
+    char tmp_path[UCS_FPATH_MAX_LEN] = "/sys/class/pci_bus/";
+    char delim[]                     = ":";
+    char *rval                       = NULL;
+    char *str                        = NULL;
+    char *str_p                      = NULL;
+    int  count                       = 0;
+
+    str = ucs_malloc(sizeof(char) * strlen(name), "ucs_get_rpath str");
+    if (NULL == str) {
+        return -1;
+    }
+    str_p = str;
+    strcpy(str, name);
+
+    do {
+        rval = strtok(str, delim);
+        str = NULL;
+        count++;
+        strcat(tmp_path, rval);
+        if (count == 2) break;
+        strcat(tmp_path, delim);
+    } while (rval != NULL);
+
+    printf("tmp_path = %s\n", tmp_path);
+    if (NULL == realpath(tmp_path, rpath)) {
+        ucs_error("realpath %m");
+        return -1;
+    }
+    printf("tmp path = %s, resolved path = %s\n", tmp_path, rpath);
+
+    ucs_free(str_p);
+
+    return 0;
+
+}
+
 ucs_status_t ucs_sys_get_mm_units(ucs_mm_unit_t **mm_units, int *num_units)
 {
     int num_mm_units[UCS_MM_UNIT_LAST];
@@ -1275,12 +1313,20 @@ ucs_status_t ucs_sys_get_mm_units(ucs_mm_unit_t **mm_units, int *num_units)
     for (mm_idx = UCS_MM_UNIT_CPU; mm_idx < UCS_MM_UNIT_LAST; mm_idx++) {
 
         for (i = 0; i < num_mm_units[mm_idx]; i++) {
+
             strcpy(mm_unit_p->fpath, ucs_mm_unit_paths[mm_idx]);
             src = (char *) mm_fpaths[mm_idx] + (i * UCS_FPATH_MAX_LEN);
             strcat(mm_unit_p->fpath, "/");
             strcat(mm_unit_p->fpath, src);
+
+            if (mm_idx != UCS_MM_UNIT_CPU) {
+                ucs_get_rpath(src, mm_unit_p->rpath);
+            } else {
+                strcpy(mm_unit_p->rpath, mm_unit_p->fpath);
+            }
+
             mm_unit_p->bus_id       = (mm_idx == UCS_MM_UNIT_CPU) ? -1 : ucs_get_bus_id(src);
-            mm_unit_p->numa_node    = (mm_idx == UCS_MM_UNIT_CPU) ? i : ucs_get_numa_node(src);
+            mm_unit_p->numa_node    = (mm_idx == UCS_MM_UNIT_CPU) ? i : ucs_get_numa_node(mm_unit_p->fpath);
             mm_unit_p->id           = mm_unit_idx++;
             mm_unit_p->mm_unit_type = mm_idx;
             mm_unit_p               = mm_unit_p + 1;
@@ -1343,8 +1389,9 @@ ucs_status_t ucs_sys_get_sys_devices(ucs_sys_device_t **sys_devices, int *num_un
             src = (char *) sys_fpaths[sys_idx] + (i * UCS_FPATH_MAX_LEN);
             strcat(sys_dev_p->fpath, "/");
             strcat(sys_dev_p->fpath, src);
+            ucs_get_rpath(src, sys_dev_p->rpath);
             sys_dev_p->bus_id       = ucs_get_bus_id(src);
-            sys_dev_p->numa_node    = ucs_get_numa_node(src); /* TODO: handle numa_node = -1 */
+            sys_dev_p->numa_node    = ucs_get_numa_node(sys_dev_p->fpath); /* TODO: handle numa_node = -1 */
             sys_dev_p->id           = sys_dev_idx++;
             sys_dev_p->sys_dev_type = sys_idx;
             sys_dev_p               = sys_dev_p + 1;
