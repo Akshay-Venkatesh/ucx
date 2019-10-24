@@ -43,6 +43,8 @@
 #define UCS_DEFAULT_MEM_FREE       640000
 #define UCS_PROCESS_SMAPS_FILE     "/proc/self/smaps"
 
+#define UCS_MAX_PATH_DEPTH         64
+
 static char *ucs_mm_unit_paths[] = {
     [UCS_MM_UNIT_CPU]     = "/sys/devices/system/node",
     [UCS_MM_UNIT_CUDA]    = "/sys/bus/pci/drivers/nvidia",
@@ -1150,6 +1152,53 @@ static ucs_status_t ucs_release_paths(char *fpaths)
     return UCS_OK;
 }
 
+/*
+ * Expects path_name to be in the form /sys/bus/pci/drivers/nvidia/0000:86:00.0
+ * The function appends `numa_node` and returns the contents of say
+ * /sys/bus/pci/drivers/nvidia/0000:86:00.0/numa_node
+ */
+static int ucs_get_numa_node(char *path_name)
+{
+    char *buf = NULL;
+    char name[UCS_FPATH_MAX_LEN];
+    struct stat statbuf;
+    int fd;
+    int numa_node;
+
+    strcpy(name, path_name);
+    strcat(name, "/");
+    strcat(name, "numa_node");
+
+    numa_node = -1;
+    fd = open(name, O_RDONLY);
+    if (0 != stat(name, &statbuf)) {
+        ucs_error("stat %m name = %s", name);
+	goto out1;
+    }
+
+    buf = malloc(sizeof(char) * statbuf.st_size);
+    if (NULL == buf) {
+        ucs_error("malloc");
+	goto out2;
+    }
+
+    if (-1 == read(fd, buf, statbuf.st_size)) {
+        ucs_error("read");
+	goto out3;
+    }
+
+    numa_node = atoi(buf);
+
+out3:
+    free(buf);
+
+out2:
+    close(fd);
+
+out1:
+    return numa_node;
+}
+
 static int ucs_get_bus_id(char *name)
 {
     char delim[] = ":";
@@ -1191,6 +1240,42 @@ static int ucs_get_bus_id(char *name)
     return bus_id;
 }
 
+static int ucs_get_rpath(char *name, char *rpath)
+{
+    char tmp_path[UCS_FPATH_MAX_LEN] = "/sys/class/pci_bus/";
+    char delim[]                     = ":";
+    char *rval                       = NULL;
+    char *str                        = NULL;
+    char *str_p                      = NULL;
+    int  count                       = 0;
+
+    str = ucs_malloc(sizeof(char) * strlen(name), "ucs_get_rpath str");
+    if (NULL == str) {
+        return -1;
+    }
+    str_p = str;
+    strcpy(str, name);
+
+    do {
+        rval = strtok(str, delim);
+        str = NULL;
+        count++;
+        strcat(tmp_path, rval);
+        if (count == 2) break;
+        strcat(tmp_path, delim);
+    } while (rval != NULL);
+
+    if (NULL == realpath(tmp_path, rpath)) {
+        ucs_error("realpath %m");
+        return -1;
+    }
+
+    ucs_free(str_p);
+
+    return 0;
+
+}
+
 ucs_status_t ucs_sys_get_mm_units(ucs_mm_unit_t **mm_units, int *num_units)
 {
     int num_mm_units[UCS_MM_UNIT_LAST];
@@ -1228,11 +1313,20 @@ ucs_status_t ucs_sys_get_mm_units(ucs_mm_unit_t **mm_units, int *num_units)
     for (mm_idx = UCS_MM_UNIT_CPU; mm_idx < UCS_MM_UNIT_LAST; mm_idx++) {
 
         for (i = 0; i < num_mm_units[mm_idx]; i++) {
+
             strcpy(mm_unit_p->fpath, ucs_mm_unit_paths[mm_idx]);
             src = (char *) mm_fpaths[mm_idx] + (i * UCS_FPATH_MAX_LEN);
             strcat(mm_unit_p->fpath, "/");
             strcat(mm_unit_p->fpath, src);
+
+            if (mm_idx != UCS_MM_UNIT_CPU) {
+                ucs_get_rpath(src, mm_unit_p->rpath);
+            } else {
+                strcpy(mm_unit_p->rpath, mm_unit_p->fpath);
+            }
+
             mm_unit_p->bus_id       = (mm_idx == UCS_MM_UNIT_CPU) ? -1 : ucs_get_bus_id(src);
+            mm_unit_p->numa_node    = (mm_idx == UCS_MM_UNIT_CPU) ? i : ucs_get_numa_node(mm_unit_p->fpath);
             mm_unit_p->id           = mm_unit_idx++;
             mm_unit_p->mm_unit_type = mm_idx;
             mm_unit_p               = mm_unit_p + 1;
@@ -1295,7 +1389,9 @@ ucs_status_t ucs_sys_get_sys_devices(ucs_sys_device_t **sys_devices, int *num_un
             src = (char *) sys_fpaths[sys_idx] + (i * UCS_FPATH_MAX_LEN);
             strcat(sys_dev_p->fpath, "/");
             strcat(sys_dev_p->fpath, src);
+            ucs_get_rpath(src, sys_dev_p->rpath);
             sys_dev_p->bus_id       = ucs_get_bus_id(src);
+            sys_dev_p->numa_node    = ucs_get_numa_node(sys_dev_p->fpath); /* TODO: handle numa_node = -1 */
             sys_dev_p->id           = sys_dev_idx++;
             sys_dev_p->sys_dev_type = sys_idx;
             sys_dev_p               = sys_dev_p + 1;
@@ -1317,12 +1413,119 @@ ucs_status_t ucs_sys_free_sys_devices(ucs_sys_device_t *sys_devices)
     return UCS_OK;
 }
 
+ucs_status_t ucs_get_path_info(char *name1, char *name2,
+                               int *rdepth1, int *rdepth2, int *variation_position)
+{
+    int depth1   = 0;
+    int depth2   = 0;
+    int min_depth;
+    int depth_variation;
+    int offset1[UCS_MAX_PATH_DEPTH];
+    int offset2[UCS_MAX_PATH_DEPTH];
+    int i;
+
+    depth1 = 0;
+    depth2 = 0;
+    
+    for (i = 0; i < strlen(name1); i++) {
+        if (name1[i] == '/') {
+            offset1[depth1++] = i + 1;
+        }
+    }
+    
+    for (i = 0; i < strlen(name2); i++) {
+        if (name2[i] == '/') {
+            offset2[depth2++] = i + 1;
+        }
+    }
+    
+    min_depth = depth1 < depth2 ? depth1 : depth2;
+
+    for (i = 0; i < min_depth; i++) {
+        if ((offset1[i + 1] - offset1[i]) == (offset2[i + 1] - offset2[i])) {
+            if (!strncmp((char *)name1 + offset1[i], (char *)name2 + offset2[i], 
+                (offset2[i + 1] - offset2[i]))) {
+                depth_variation++;
+            } else {
+                break;
+            }
+        } else {
+            break;
+        }
+    }
+
+    *rdepth1 = depth1;
+    *rdepth2 = depth2;
+    *variation_position = depth_variation;
+
+    return UCS_OK;
+
+}
+
+ucs_status_t ucs_sys_get_dev_distance(ucs_sys_device_t *sys_device,
+                                      ucs_mm_unit_t *mm_unit, 
+                                      ucs_sys_dev_dist_enum_t *distance)
+{
+    int numa_distance = abs(mm_unit->numa_node - sys_device->numa_node);
+    int rdepth1, rdepth2, variation_position;
+
+    if (UCS_MM_UNIT_CPU == mm_unit->mm_unit_type) {
+        *distance = (numa_distance == 0) ? UCS_SYS_DEV_DIST_PIX : UCS_SYS_DEV_DIST_SYS;
+    } else if (UCS_MM_UNIT_CUDA == mm_unit->mm_unit_type) {
+        if (numa_distance > 0) {
+            /* 
+             * Crossing QPI
+             * /sys/devices/pci0000:00/{0000:00:02.0}/0000:03:00.0/0000:04:0c.0/pci_bus/0000:07
+             * /sys/devices/pci0000:80/{0000:80:02.0}/0000:82:00.0/0000:83:04.0/pci_bus/0000:84
+             */
+            *distance = UCS_SYS_DEV_DIST_SYS;
+        } else {
+            ucs_get_path_info(sys_device->rpath, mm_unit->rpath,
+                              &rdepth1, &rdepth2, &variation_position);
+            if ((rdepth1 == rdepth2) && (variation_position == (rdepth1 - 3))) {
+                /*
+                 * Crossing a single switch 
+                 * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/{0000:04:0c.0}/pci_bus/0000:07
+                 * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/{0000:04:04.0}/pci_bus/0000:05
+                 * => depths should match but depth - 3 differs
+                 */
+                *distance = UCS_SYS_DEV_DIST_PIX;
+            } else if (variation_position == 3) {
+                 /*
+                  * Crossing Host Bridge
+                  * /sys/devices/pci0000:00/{0000:00:02.0}/0000:03:00.0/0000:04:0c.0/pci_bus/0000:07
+                  * /sys/devices/pci0000:00/{0000:00:03.0}/0000:08:00.0/0000:09:0c.0/pci_bus/0000:0c
+                  *
+                  * /sys/devices/pci0000:80/{0000:80:03.0}/0000:82:00.0/0000:83:10.0/pci_bus/0000:85
+                  * /sys/devices/pci0000:80/{0000:80:01.0}/pci_bus/0000:81
+                  *
+                  * => depths may or may not match but depth 4 varies
+                  */
+                *distance = UCS_SYS_DEV_DIST_PHB;
+            } else {
+                  /* If not the above 2 cases, then assume multiple switches */
+                  /*
+                   * TODO: Differentiate between NODE/PXB cases
+                   * Crossing a multiple switches 
+                   * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/0000:04:0c.0/pci_bus/0000:07
+                   * /sys/devices/pci0000:00/0000:00:02.0/0000:03:00.0/0000:05:04.0/pci_bus/0000:08
+                   */
+                *distance = UCS_SYS_DEV_DIST_NODE;
+            }
+        }
+    }
+
+    ucs_debug("distance between %s %s = %d", mm_unit->rpath, sys_device->rpath, *distance);
+
+    return UCS_OK;
+}
+
 int ucs_get_cpu_mm_index(void *ptr, ucs_mm_unit_t *mm_units, int num_units)
 {
     int mm_index = -1;
 
     get_mempolicy(&mm_index, NULL, 0, ptr, MPOL_F_NODE | MPOL_F_ADDR);
-    printf("mm_index = %d\n", mm_index);
+    ucs_debug("ptr = %p mm_index = %d", ptr, mm_index);
 
     /* this is a shortcut that works only if numa node 0, 1, ... n
      * occupy the first n indices of mm_unit array

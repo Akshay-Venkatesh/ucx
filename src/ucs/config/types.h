@@ -115,6 +115,18 @@ typedef enum {
 
 
 /**
+ * PCIe distance categories and answers what needs to be crossed to reach
+ */
+typedef enum {
+    UCS_SYS_DEV_DIST_PIX = 0, /* traverse 1 PCIe switch */
+    UCS_SYS_DEV_DIST_PXB,     /* traverse >1 PCIe switches */
+    UCS_SYS_DEV_DIST_PHB,     /* traverse host bridge */
+    UCS_SYS_DEV_DIST_NODE,    /* traverse host bridge in the same numa node */
+    UCS_SYS_DEV_DIST_SYS      /* traverse CPU interconnect (like QPI) */
+} ucs_sys_dev_dist_enum_t;
+
+
+/**
  * Structure type for array configuration. Should be used inside the configuration
  * structure declaration.
  */
@@ -150,7 +162,9 @@ typedef struct ucs_mm_unit {
     ucs_mm_unit_enum_t mm_unit_type;             /**< Type of memory unit */
     unsigned int       id;                       /**< Index of the unit */
     unsigned int       bus_id;                   /**< bus ID of of the device if applicable*/
+    unsigned int       numa_node;                /**< NUMA node assoicated with the device*/
     char               fpath[UCS_FPATH_MAX_LEN];
+    char               rpath[UCS_FPATH_MAX_LEN];
 } ucs_mm_unit_t;
 
 /**
@@ -160,8 +174,10 @@ typedef struct ucs_mm_unit {
 typedef struct ucs_sys_device {
     ucs_sys_device_enum_t sys_dev_type;             /**< Type of system device*/
     unsigned int          id;                       /**< Index of the unit */
-    unsigned int          bus_id;                   /**< bus ID of of the device if applicable*/
+    unsigned int          bus_id;                   /**< bus ID of of the device*/
+    unsigned int          numa_node;                /**< NUMA node assoicated with the device*/
     char                  fpath[UCS_FPATH_MAX_LEN];
+    char                  rpath[UCS_FPATH_MAX_LEN];
 } ucs_sys_device_t;
 
 #endif /* TYPES_H_ */
