@@ -1416,10 +1416,10 @@ ucs_status_t ucs_sys_free_sys_devices(ucs_sys_device_t *sys_devices)
 ucs_status_t ucs_get_path_info(char *name1, char *name2,
                                int *rdepth1, int *rdepth2, int *variation_position)
 {
-    int depth1   = 0;
-    int depth2   = 0;
+    int depth1          = 0;
+    int depth2          = 0;
+    int depth_variation = 0;
     int min_depth;
-    int depth_variation;
     int offset1[UCS_MAX_PATH_DEPTH];
     int offset2[UCS_MAX_PATH_DEPTH];
     int i;
