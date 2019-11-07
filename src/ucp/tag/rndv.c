@@ -699,7 +699,8 @@ UCS_PROFILE_FUNC_VOID(ucp_rndv_matched, (worker, rreq, rndv_rts_hdr),
             goto out;
         } else if (rndv_mode == UCP_RNDV_MODE_AUTO) {
             /* check if we need pipelined memtype staging */
-            if (UCP_MEM_IS_CUDA(rreq->recv.mem_type) &&
+            if ((UCP_MEM_IS_CUDA(rreq->recv.mem_type) ||
+                UCP_MEM_IS_CUDA_MANAGED(rreq->recv.mem_type)) &&
                 ucp_rndv_is_recv_pipeline_needed(rndv_req,
                                                  rreq->recv.mem_type)) {
                 ucp_rndv_recv_data_init(rreq, rndv_rts_hdr->size);

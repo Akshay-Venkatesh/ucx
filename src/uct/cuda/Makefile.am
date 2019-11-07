@@ -20,6 +20,9 @@ noinst_HEADERS = \
 	cuda_copy/cuda_copy_md.h \
 	cuda_copy/cuda_copy_iface.h \
 	cuda_copy/cuda_copy_ep.h \
+	cuda_managed_copy/cuda_managed_copy_md.h \
+	cuda_managed_copy/cuda_managed_copy_iface.h \
+	cuda_managed_copy/cuda_managed_copy_ep.h \
 	cuda_ipc/cuda_ipc_md.h \
 	cuda_ipc/cuda_ipc_iface.h \
 	cuda_ipc/cuda_ipc_ep.h \
@@ -31,6 +34,9 @@ libuct_cuda_la_SOURCES = \
 	cuda_copy/cuda_copy_md.c \
 	cuda_copy/cuda_copy_iface.c \
 	cuda_copy/cuda_copy_ep.c \
+	cuda_managed_copy/cuda_managed_copy_md.c \
+	cuda_managed_copy/cuda_managed_copy_iface.c \
+	cuda_managed_copy/cuda_managed_copy_ep.c \
 	cuda_ipc/cuda_ipc_md.c \
 	cuda_ipc/cuda_ipc_iface.c \
 	cuda_ipc/cuda_ipc_ep.c \
