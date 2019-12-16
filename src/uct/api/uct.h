@@ -2004,12 +2004,15 @@ ucs_status_t uct_md_mem_dereg(uct_md_h md, uct_mem_h memh);
  * @param [in]     length       Size of memory
  * @param [out]    mem_type_p   Filled with memory type of the address range if
                                 function succeeds
+ * @param [out]    mem_loc_p    Filled with location details (like bus_id, numa_node)
+ *                              of the address range if function succeeds
  * @return UCS_OK               If memory type is successfully detected
  *         UCS_ERR_INVALID_ADDR If failed to detect memory type
  */
 ucs_status_t uct_md_detect_memory_type(uct_md_h md, const void *addr,
                                        size_t length,
-                                       ucs_memory_type_t *mem_type_p);
+                                       ucs_memory_type_t *mem_type_p,
+                                       ucs_device_id_t *mem_loc_p);
 
 
 /**

@@ -30,6 +30,22 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_base_detect_memory_type,
                                          CU_POINTER_ATTRIBUTE_IS_MANAGED};
     CUresult cu_err;
     const char *cu_err_str;
+    int bus_id;
+    CUdevice cu_dev;
+
+    /* if memory detection is called for a certain ptr, then
+     * context for the ptr is active */
+    cu_err = cuCtxGetDevice(&cu_dev);
+    if (cu_err != CUDA_SUCCESS){
+        goto err;
+    }
+
+    cu_err = cuDeviceGetAttribute(&bus_id, CU_DEVICE_ATTRIBUTE_PCI_BUS_ID, cu_dev);
+    if (cu_err != CUDA_SUCCESS){
+        goto err;
+    }
+    mem_loc_p->bus_id = bus_id;
+    ucs_debug("cuDeviceGetAttribute returned bus_id %d on (%p)", bus_id, (void*) addr);
 
     if (addr == NULL) {
         *mem_type_p = UCS_MEMORY_TYPE_HOST;
@@ -52,6 +68,7 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_base_detect_memory_type,
         return UCS_OK;
     }
 
+err:
     return UCS_ERR_INVALID_ADDR;
 }
 

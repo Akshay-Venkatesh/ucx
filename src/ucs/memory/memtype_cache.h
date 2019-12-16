@@ -26,6 +26,7 @@ struct ucs_memtype_cache_region {
     ucs_pgt_region_t    super;    /**< Base class - page table region */
     ucs_list_link_t     list;     /**< List element */
     ucs_memory_type_t   mem_type; /**< Memory type the address belongs to */
+    ucs_device_id_t     mem_loc;  /**< Location (like bus_id) of the address */
 };
 
 
@@ -84,7 +85,8 @@ ucs_memtype_cache_lookup(ucs_memtype_cache_t *memtype_cache, const void *address
  */
 void ucs_memtype_cache_update(ucs_memtype_cache_t *memtype_cache,
                               const void *address, size_t size,
-                              ucs_memory_type_t mem_type);
+                              ucs_memory_type_t mem_type,
+                              ucs_device_id_t mem_loc);
 
 
 /**

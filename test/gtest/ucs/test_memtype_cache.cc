@@ -279,7 +279,8 @@ protected:
             return;
         }
 
-        ucs_memtype_cache_update(m_memtype_cache, ptr, size, mem_type);
+	ucs_device_id_t mem_loc; /* use uninitialized mem_loc for now */
+        ucs_memtype_cache_update(m_memtype_cache, ptr, size, mem_type, mem_loc);
     }
 
     void memtype_cache_update(const mem_buffer &b) {

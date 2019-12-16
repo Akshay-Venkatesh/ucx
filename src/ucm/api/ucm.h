@@ -175,6 +175,7 @@ typedef union ucm_event {
         void               *address;
         size_t             size;
         ucs_memory_type_t  mem_type;
+        ucs_device_id_t    mem_loc;
     } mem_type;
 
 } ucm_event_t;

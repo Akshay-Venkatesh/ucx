@@ -82,6 +82,30 @@ static void ucm_cuda_set_ptr_attr(CUdeviceptr dptr)
     }
 }
 
+/* return -1 if device location cannot be found out
+ * else returns valid bus_id associated with current ctx */
+void ucm_cuda_get_mem_loc(ucs_device_id_t *mem_loc_p)
+{
+    int bus_id;
+    CUresult ret;
+    CUdevice cu_dev;
+
+    /* if memory detection is called for a certain ptr, then
+     * context for the ptr is active */
+    ret = cuCtxGetDevice(&cu_dev);
+    if (ret != CUDA_SUCCESS){
+        bus_id = -1;
+    }
+
+    ret = cuDeviceGetAttribute(&bus_id, CU_DEVICE_ATTRIBUTE_PCI_BUS_ID, cu_dev);
+    if (ret != CUDA_SUCCESS){
+        bus_id = -1;
+    }
+
+    mem_loc_p->bus_id = bus_id;
+    ucm_debug("cuDeviceGetAttribute returned bus_id %d", bus_id);
+}
+
 static UCS_F_ALWAYS_INLINE void
 ucm_dispatch_mem_type_alloc(void *addr, size_t length, ucs_memory_type_t mem_type)
 {
@@ -90,6 +114,7 @@ ucm_dispatch_mem_type_alloc(void *addr, size_t length, ucs_memory_type_t mem_typ
     event.mem_type.address  = addr;
     event.mem_type.size     = length;
     event.mem_type.mem_type = mem_type;
+    ucm_cuda_get_mem_loc(&event.mem_type.mem_loc);
     ucm_event_dispatch(UCM_EVENT_MEM_TYPE_ALLOC, &event);
 }
 
@@ -101,6 +126,7 @@ ucm_dispatch_mem_type_free(void *addr, size_t length, ucs_memory_type_t mem_type
     event.mem_type.address  = addr;
     event.mem_type.size     = length;
     event.mem_type.mem_type = mem_type;
+    ucm_cuda_get_mem_loc(&event.mem_type.mem_loc);
     ucm_event_dispatch(UCM_EVENT_MEM_TYPE_FREE, &event);
 }
 

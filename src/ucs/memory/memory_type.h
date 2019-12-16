@@ -32,6 +32,16 @@ typedef enum ucs_memory_type {
     UCS_MEMORY_TYPE_LAST
 } ucs_memory_type_t;
 
+/*
+ * Device location details
+ */
+typedef struct ucs_device_id {
+    int bus_id;    /**< If pcie device, then bus_id associated with it */
+    int is_numa;   /**< If CPU NUMA node or not */
+    int numa_node; /**< If not CPU NUMA node,
+                     then NUMA node associated with pcie device
+                     else numa_node and bus_id is the same (for NUMA node)*/
+} ucs_device_id_t;
 
 /**
  * Array of string names for each memory type
