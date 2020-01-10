@@ -9,6 +9,7 @@ examplesdir = $(pkgdatadir)/examples
 dist_examples_DATA = \
 	ucx_hello_world.h \
 	ucp_hello_world.c \
+	ucp_hello_world_one_sided.c \
 	uct_hello_world.c \
 	ucx_profiling.c \
 	ucp_client_server.c
@@ -29,16 +30,18 @@ EXAMPLE_CCLD_FLAGS = -lucs -I$(includedir) -L$(libdir) -Wall -Werror -Wl,-rpath,
 
 installcheck-local:
 	@echo "INSTALLCHECK: Compiling examples with installed library"
-	$(CC) -o uct_hello_world   $(examplesdir)/uct_hello_world.c   -luct $(EXAMPLE_CCLD_FLAGS)
-	$(CC) -o ucp_hello_world   $(examplesdir)/ucp_hello_world.c   -lucp $(EXAMPLE_CCLD_FLAGS)
-	$(CC) -o ucp_client_server $(examplesdir)/ucp_client_server.c -lucp $(EXAMPLE_CCLD_FLAGS)
-	$(CC) -o ucx_profiling     $(examplesdir)/ucx_profiling.c     -lm   $(EXAMPLE_CCLD_FLAGS)
-	$(RM) *.o uct_hello_world ucp_hello_world ucp_client_server ucx_profiling
+	$(CC) -o uct_hello_world             $(examplesdir)/uct_hello_world.c           -luct $(EXAMPLE_CCLD_FLAGS)
+	$(CC) -o ucp_hello_world             $(examplesdir)/ucp_hello_world.c           -lucp $(EXAMPLE_CCLD_FLAGS)
+	$(CC) -o ucp_hello_world_one_sided   $(examplesdir)/ucp_hello_world_one_sided.c -lucp $(EXAMPLE_CCLD_FLAGS)
+	$(CC) -o ucp_client_server           $(examplesdir)/ucp_client_server.c         -lucp $(EXAMPLE_CCLD_FLAGS)
+	$(CC) -o ucx_profiling               $(examplesdir)/ucx_profiling.c             -lm   $(EXAMPLE_CCLD_FLAGS)
+	$(RM) *.o uct_hello_world ucp_hello_world ucp_hello_world_one_sided ucp_client_server ucx_profiling
 
 if HAVE_EXAMPLES
 
 noinst_PROGRAMS = \
 	ucp_hello_world \
+	ucp_hello_world_one_sided \
 	uct_hello_world \
 	ucx_profiling \
 	ucp_client_server
@@ -49,6 +52,13 @@ ucp_hello_world_CPPFLAGS = $(BASE_CPPFLAGS) $(EXAMPLE_CUDA_CPPFLAGS)
 ucp_hello_world_LDADD    = $(top_builddir)/src/ucs/libucs.la \
                            $(top_builddir)/src/ucp/libucp.la \
                            $(EXAMPLE_CUDA_LDFLAGS)
+
+ucp_hello_world_one_sided_SOURCES  = ucp_hello_world_one_sided.c
+ucp_hello_world_one_sided_CFLAGS   = $(BASE_CFLAGS) $(EXAMPLE_CUDA_CFLAGS)
+ucp_hello_world_one_sided_CPPFLAGS = $(BASE_CPPFLAGS) $(EXAMPLE_CUDA_CPPFLAGS)
+ucp_hello_world_one_sided_LDADD    = $(top_builddir)/src/ucs/libucs.la \
+                                     $(top_builddir)/src/ucp/libucp.la \
+                                     $(EXAMPLE_CUDA_LDFLAGS)
 
 uct_hello_world_SOURCES  = uct_hello_world.c
 uct_hello_world_CFLAGS   = $(BASE_CFLAGS) $(EXAMPLE_CUDA_CFLAGS)
