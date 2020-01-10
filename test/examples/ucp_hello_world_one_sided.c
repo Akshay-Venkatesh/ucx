@@ -209,6 +209,7 @@ static int run_ucx_client(ucp_worker_h ucp_worker)
 
     ucp_rkey_destroy(rkey);
 
+    /* send token message because server calling progress seems necessary */
     msg_len = 1;
     msg     = malloc(msg_len);
     CHKERR_JUMP(msg == NULL, "allocate memory\n", err_ep);
@@ -246,7 +247,7 @@ static int run_ucx_server(ucp_worker_h ucp_worker)
     struct ucx_context *request = 0;
     int ret;
 
-    /* Receive client UCX address */
+    /* recv token message */
     do {
         /* Progressing before probe to update the state */
         ucp_worker_progress(ucp_worker);
