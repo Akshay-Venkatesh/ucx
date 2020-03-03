@@ -389,10 +389,10 @@ UCS_TEST_P(test_ucp_peer_failure, rndv_disable) {
     const size_t size_max = std::numeric_limits<size_t>::max();
 
     sender().connect(&receiver(), get_ep_params(), STABLE_EP_INDEX);
-    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv.am_thresh);
-    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv.rma_thresh);
-    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv_send_nbr.am_thresh);
-    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv_send_nbr.rma_thresh);
+    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv.am_thresh[0]);
+    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv.rma_thresh[0]);
+    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv_send_nbr.am_thresh[0]);
+    EXPECT_EQ(size_max, ucp_ep_config(sender().ep())->tag.rndv_send_nbr.rma_thresh[0]);
 }
 
 UCS_TEST_P(test_ucp_peer_failure, zcopy, "ZCOPY_THRESH=1023") {

@@ -377,15 +377,15 @@ UCS_TEST_P(test_ucp_tag_limits, check_max_short_rndv_thresh_zero, "RNDV_THRESH=0
 
     // (maximal short + 1) <= RNDV thresh
     EXPECT_LE(max_short,
-              ucp_ep_config(sender().ep())->tag.rndv.am_thresh);
+              ucp_ep_config(sender().ep())->tag.rndv.am_thresh[0]);
     EXPECT_LE(max_short,
-              ucp_ep_config(sender().ep())->tag.rndv.rma_thresh);
+              ucp_ep_config(sender().ep())->tag.rndv.rma_thresh[0]);
 
     // (maximal short + 1) <= RNDV send_nbr thresh
     EXPECT_LE(max_short,
-              ucp_ep_config(sender().ep())->tag.rndv_send_nbr.am_thresh);
+              ucp_ep_config(sender().ep())->tag.rndv_send_nbr.am_thresh[0]);
     EXPECT_LE(max_short,
-              ucp_ep_config(sender().ep())->tag.rndv_send_nbr.rma_thresh);
+              ucp_ep_config(sender().ep())->tag.rndv_send_nbr.rma_thresh[0]);
 
     if (m_test_offload) {
         // There is a lower bound for rndv threshold with tag offload. We should
@@ -396,9 +396,9 @@ UCS_TEST_P(test_ucp_tag_limits, check_max_short_rndv_thresh_zero, "RNDV_THRESH=0
 
         EXPECT_GT(min_rndv, 0ul); // min_rndv should be RTS size at least
         EXPECT_GE(min_rndv,
-                  ucp_ep_config(sender().ep())->tag.rndv_send_nbr.am_thresh);
+                  ucp_ep_config(sender().ep())->tag.rndv_send_nbr.am_thresh[0]);
         EXPECT_GE(min_rndv,
-                  ucp_ep_config(sender().ep())->tag.rndv_send_nbr.rma_thresh);
+                  ucp_ep_config(sender().ep())->tag.rndv_send_nbr.rma_thresh[0]);
     }
 }
 

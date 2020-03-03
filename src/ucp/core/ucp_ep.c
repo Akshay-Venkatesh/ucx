@@ -59,6 +59,7 @@ static ucs_stats_class_t ucp_ep_stats_class = {
 void ucp_ep_config_key_reset(ucp_ep_config_key_t *key)
 {
     ucp_lane_index_t i;
+    ucp_mem_loc_index_t j;
     memset(key, 0, sizeof(*key));
     key->num_lanes        = 0;
     for (i = 0; i < UCP_MAX_LANES; ++i) {
@@ -78,8 +79,10 @@ void ucp_ep_config_key_reset(ucp_ep_config_key_t *key)
     key->status           = UCS_OK;
     memset(key->am_bw_lanes,  UCP_NULL_LANE, sizeof(key->am_bw_lanes));
     memset(key->rma_lanes,    UCP_NULL_LANE, sizeof(key->rma_lanes));
-    memset(key->rma_bw_lanes, UCP_NULL_LANE, sizeof(key->rma_bw_lanes));
     memset(key->amo_lanes,    UCP_NULL_LANE, sizeof(key->amo_lanes));
+    for (j = 0; j < UCP_MAX_MEM_LOCS; j++) {
+        memset(key->rma_bw_lanes[j], UCP_NULL_LANE, sizeof(key->rma_bw_lanes[j]));
+    }
 }
 
 ucs_status_t ucp_ep_new(ucp_worker_h worker, const char *peer_name,
@@ -968,6 +971,21 @@ out:
     return;
 }
 
+static int ucp_cmp_all_rma_bw_lanes(const ucp_ep_config_key_t *key1,
+                                    const ucp_ep_config_key_t *key2)
+{
+    ucp_mem_loc_index_t i;
+    int rval = 0;
+
+    for (i = 0; i < UCP_MAX_MEM_LOCS; i++) {
+        rval = rval || (memcmp(key1->rma_bw_lanes[i], key2->rma_bw_lanes[i],
+                               sizeof(key1->rma_bw_lanes[i])));
+    }
+
+    return rval;
+
+}
+
 int ucp_ep_config_is_equal(const ucp_ep_config_key_t *key1,
                            const ucp_ep_config_key_t *key2)
 {
@@ -977,8 +995,10 @@ int ucp_ep_config_is_equal(const ucp_ep_config_key_t *key1,
     if ((key1->num_lanes        != key2->num_lanes)                                ||
         memcmp(key1->rma_lanes,    key2->rma_lanes,    sizeof(key1->rma_lanes))    ||
         memcmp(key1->am_bw_lanes,  key2->am_bw_lanes,  sizeof(key1->am_bw_lanes))  ||
-        memcmp(key1->rma_bw_lanes, key2->rma_bw_lanes, sizeof(key1->rma_bw_lanes)) ||
         memcmp(key1->amo_lanes,    key2->amo_lanes,    sizeof(key1->amo_lanes))    ||
+	/* compare all rma_bw_lanes (one for each mem_loc) */
+        ucp_cmp_all_rma_bw_lanes(key1, key2)                                       ||
+	/* TODO: does this need rma_bw_md_map per mem_loc? */
         (key1->rma_bw_md_map    != key2->rma_bw_md_map)                            ||
         (key1->reachable_md_map != key2->reachable_md_map)                         ||
         (key1->am_lane          != key2->am_lane)                                  ||
@@ -1161,16 +1181,16 @@ static void ucp_ep_config_set_am_rndv_thresh(ucp_worker_h worker,
 
     min_thresh = ucs_max(iface_attr->cap.am.min_zcopy, min_rndv_thresh);
 
-    config->tag.rndv.am_thresh = ucp_ep_thresh(rndv_thresh,
-                                               min_thresh,
-                                               max_rndv_thresh);
+    config->tag.rndv.am_thresh[0] = ucp_ep_thresh(rndv_thresh,
+                                                  min_thresh,
+                                                  max_rndv_thresh);
 
-    config->tag.rndv_send_nbr.am_thresh = ucp_ep_thresh(rndv_nbr_thresh,
-                                                        min_thresh,
-                                                        max_rndv_thresh);
+    config->tag.rndv_send_nbr.am_thresh[0] = ucp_ep_thresh(rndv_nbr_thresh,
+                                                           min_thresh,
+                                                           max_rndv_thresh);
 
     ucs_trace("Active Message rndv threshold is %zu (send_nbr: %zu)",
-              config->tag.rndv.am_thresh, config->tag.rndv_send_nbr.am_thresh);
+              config->tag.rndv.am_thresh[0], config->tag.rndv_send_nbr.am_thresh[0]);
 }
 
 static void ucp_ep_config_set_rndv_thresh(ucp_worker_t *worker,
@@ -1218,16 +1238,16 @@ static void ucp_ep_config_set_rndv_thresh(ucp_worker_t *worker,
     min_thresh = ucs_max(iface_attr->cap.get.min_zcopy, min_rndv_thresh);
 
     /* TODO: need to check minimal PUT Zcopy */
-    config->tag.rndv.rma_thresh = ucp_ep_thresh(rndv_thresh,
-                                                min_thresh,
-                                                max_rndv_thresh);
+    config->tag.rndv.rma_thresh[0] = ucp_ep_thresh(rndv_thresh,
+                                                   min_thresh,
+                                                   max_rndv_thresh);
 
-    config->tag.rndv_send_nbr.rma_thresh = ucp_ep_thresh(rndv_nbr_thresh,
-                                                         min_thresh,
-                                                         max_rndv_thresh);
+    config->tag.rndv_send_nbr.rma_thresh[0] = ucp_ep_thresh(rndv_nbr_thresh,
+                                                            min_thresh,
+                                                            max_rndv_thresh);
 
     ucs_trace("rndv threshold is %zu (send_nbr: %zu)",
-              config->tag.rndv.rma_thresh, config->tag.rndv_send_nbr.rma_thresh);
+              config->tag.rndv.rma_thresh[0], config->tag.rndv_send_nbr.rma_thresh[0]);
 }
 
 static void ucp_ep_config_set_memtype_thresh(ucp_memtype_thresh_t *max_eager_short,
@@ -1377,14 +1397,14 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
     config->tag.lane                    = UCP_NULL_LANE;
     config->tag.proto                   = &ucp_tag_eager_proto;
     config->tag.sync_proto              = &ucp_tag_eager_sync_proto;
-    config->tag.rndv.rma_thresh         = SIZE_MAX;
+    config->tag.rndv.rma_thresh[0]      = SIZE_MAX;
     config->tag.rndv.min_get_zcopy      = 0;
     config->tag.rndv.max_get_zcopy      = SIZE_MAX;
     config->tag.rndv.min_put_zcopy      = 0;
     config->tag.rndv.max_put_zcopy      = SIZE_MAX;
-    config->tag.rndv.am_thresh          = SIZE_MAX;
-    config->tag.rndv_send_nbr.am_thresh = SIZE_MAX;
-    config->tag.rndv_send_nbr.rma_thresh = SIZE_MAX;
+    config->tag.rndv.am_thresh[0]       = SIZE_MAX;
+    config->tag.rndv_send_nbr.am_thresh[0] = SIZE_MAX;
+    config->tag.rndv_send_nbr.rma_thresh[0] = SIZE_MAX;
     config->tag.rndv.rkey_size          = ucp_rkey_packed_size(context,
                                                                config->key.rma_bw_md_map);
     for (lane = 0; lane < UCP_MAX_LANES; ++lane) {
@@ -1421,9 +1441,11 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
     get_zcopy_lane_count = 0;
     put_zcopy_lane_count = 0;
     rndv_max_bw          = 0;
+    /* TODO: this section sets thresholds for put/get usage; we may need to
+     * extend tag.rndv.{min/max}_{put/get}_zcopy to an array */
     for (i = 0; (i < config->key.num_lanes) &&
-                (config->key.rma_bw_lanes[i] != UCP_NULL_LANE); ++i) {
-        lane      = config->key.rma_bw_lanes[i];
+                (config->key.rma_bw_lanes[0][i] != UCP_NULL_LANE); ++i) {
+        lane      = config->key.rma_bw_lanes[0][i];
         rsc_index = config->key.lanes[lane].rsc_index;
 
         if (rsc_index != UCP_NULL_RESOURCE) {
@@ -1470,10 +1492,11 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
         config->tag.rndv.max_put_zcopy = 0;
     }
 
+    /* TODO: don't understand what scale does; does it need to be extended? */
     if (rndv_max_bw > 0) {
         for (i = 0; (i < config->key.num_lanes) &&
-                    (config->key.rma_bw_lanes[i] != UCP_NULL_LANE); ++i) {
-            lane      = config->key.rma_bw_lanes[i];
+                    (config->key.rma_bw_lanes[0][i] != UCP_NULL_LANE); ++i) {
+            lane      = config->key.rma_bw_lanes[0][i];
             rsc_index = config->key.lanes[lane].rsc_index;
 
             if (rsc_index != UCP_NULL_RESOURCE) {
@@ -1578,8 +1601,11 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
                                                   min_rndv_thresh,
                                                   max_rndv_thresh);
                 } else {
+                    /* TODO: should we iterate over all mem_locs here? */
+                    /* this would potentially result in setting rndv_thresh per
+                     * mem_loc */
                     ucp_ep_config_set_rndv_thresh(worker, config,
-                                                  config->key.rma_bw_lanes,
+                                                  config->key.rma_bw_lanes[0],
                                                   min_rndv_thresh,
                                                   max_rndv_thresh);
                 }
@@ -1772,6 +1798,7 @@ void ucp_ep_config_lane_info_str(ucp_context_h context,
     uct_tl_resource_desc_t *rsc;
     ucp_rsc_index_t rsc_index;
     ucp_lane_index_t proxy_lane;
+    ucp_lane_index_t j;
     ucp_md_index_t dst_md_index;
     ucp_rsc_index_t cmpt_index;
     char *p, *endp;
@@ -1820,10 +1847,13 @@ void ucp_ep_config_lane_info_str(ucp_context_h context,
         p += strlen(p);
     }
 
-    prio = ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes, lane);
-    if (prio != -1) {
-        snprintf(p, endp - p, " rma_bw#%d", prio);
-        p += strlen(p);
+    /* TODO: Seems like we need to print prio per rma_bw_lanes per mem_loc */
+    for (j = 0; j < UCP_MAX_MEM_LOCS; j++) {
+        prio = ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes[j], lane);
+        if (prio != -1) {
+            snprintf(p, endp - p, " rma_bw[%u]#%d", j, prio);
+            p += strlen(p);
+        }
     }
 
     prio = ucp_ep_config_get_multi_lane_prio(key->amo_lanes, lane);
@@ -1884,20 +1914,20 @@ static void ucp_ep_config_print(FILE *stream, ucp_worker_h worker,
         ucp_ep_config_print_tag_proto(stream, "tag_send",
                                       config->tag.eager.max_short,
                                       config->tag.eager.zcopy_thresh[0],
-                                      config->tag.rndv.rma_thresh,
-                                      config->tag.rndv.am_thresh);
+                                      config->tag.rndv.rma_thresh[0],
+                                      config->tag.rndv.am_thresh[0]);
         ucp_ep_config_print_tag_proto(stream, "tag_send_nbr",
                                       config->tag.eager.max_short,
                                       /* disable zcopy */
-                                      ucs_min(config->tag.rndv_send_nbr.rma_thresh,
-                                              config->tag.rndv_send_nbr.am_thresh),
-                                      config->tag.rndv_send_nbr.rma_thresh,
-                                      config->tag.rndv_send_nbr.am_thresh);
+                                      ucs_min(config->tag.rndv_send_nbr.rma_thresh[0],
+                                              config->tag.rndv_send_nbr.am_thresh[0]),
+                                      config->tag.rndv_send_nbr.rma_thresh[0],
+                                      config->tag.rndv_send_nbr.am_thresh[0]);
         ucp_ep_config_print_tag_proto(stream, "tag_send_sync",
                                       config->tag.eager.max_short,
                                       config->tag.eager.sync_zcopy_thresh[0],
-                                      config->tag.rndv.rma_thresh,
-                                      config->tag.rndv.am_thresh);
+                                      config->tag.rndv.rma_thresh[0],
+                                      config->tag.rndv.am_thresh[0]);
     }
 
      if (context->config.features & UCP_FEATURE_RMA) {

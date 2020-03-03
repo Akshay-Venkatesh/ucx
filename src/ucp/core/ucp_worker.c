@@ -385,6 +385,7 @@ void ucp_worker_signal_internal(ucp_worker_h worker)
 
 static unsigned ucp_worker_iface_err_handle_progress(void *arg)
 {
+    int i;
     ucp_worker_err_handle_arg_t *err_handle_arg = arg;
     ucp_worker_h worker                         = err_handle_arg->worker;
     ucp_ep_h ucp_ep                             = err_handle_arg->ucp_ep;
@@ -444,11 +445,14 @@ static unsigned ucp_worker_iface_err_handle_progress(void *arg)
     key.wireup_lane        = 0;
     key.tag_lane           = 0;
     key.rma_lanes[0]       = 0;
-    key.rma_bw_lanes[0]    = 0;
     key.amo_lanes[0]       = 0;
     key.lanes[0].rsc_index = UCP_NULL_RESOURCE;
     key.num_lanes          = 1;
     key.status             = status;
+
+    for (i = 0; i < UCP_MAX_MEM_LOCS; i++) {
+        key.rma_bw_lanes[i][0] = 0;
+    }
 
     status = ucp_worker_get_ep_config(worker, &key, 0, &ucp_ep->cfg_index);
     if (status != UCS_OK) {
@@ -1519,7 +1523,7 @@ static void ucp_worker_print_used_tls(const ucp_ep_config_key_t *key,
     for (lane = 0; lane < key->num_lanes; ++lane) {
         if (((key->am_lane == lane) || (lane == key->tag_lane) ||
             (ucp_ep_config_get_multi_lane_prio(key->am_bw_lanes, lane) >= 0)  ||
-            (ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes, lane) >= 0)) &&
+            (ucp_ep_config_get_multi_lane_prio(key->rma_bw_lanes[0], lane) >= 0)) &&
             (context->config.features & UCP_FEATURE_TAG)) {
             tag_lanes_map |= UCS_BIT(lane);
         }

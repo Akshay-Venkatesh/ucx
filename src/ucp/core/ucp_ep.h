@@ -122,7 +122,7 @@ typedef struct ucp_ep_config_key {
     ucp_lane_index_t       rma_lanes[UCP_MAX_LANES];
 
     /* Lanes for high-bw memory access, sorted by priority, highest first */
-    ucp_lane_index_t       rma_bw_lanes[UCP_MAX_LANES];
+    ucp_lane_index_t       rma_bw_lanes[UCP_MAX_MEM_LOCS][UCP_MAX_LANES];
 
     /* Lane for obtaining remote memory pointer */
     ucp_lane_index_t       rkey_ptr_lane;
@@ -249,9 +249,9 @@ typedef struct ucp_ep_config {
             /* Minimal size of rndv_put_zcopy */
             size_t          min_put_zcopy;
             /* Threshold for switching from eager to RMA based rendezvous */
-            size_t          rma_thresh;
+            size_t          rma_thresh[UCP_MAX_MEM_LOCS];
             /* Threshold for switching from eager to AM based rendezvous */
-            size_t          am_thresh;
+            size_t          am_thresh[UCP_MAX_MEM_LOCS];
             /* Total size of packed rkey, according to high-bw md_map */
             size_t          rkey_size;
             /* remote memory domains which support rkey_ptr */
@@ -267,9 +267,9 @@ typedef struct ucp_ep_config {
         /* special thresholds for the ucp_tag_send_nbr() */
         struct {
             /* Threshold for switching from eager to RMA based rendezvous */
-            size_t          rma_thresh;
+            size_t          rma_thresh[UCP_MAX_MEM_LOCS];
             /* Threshold for switching from eager to AM based rendezvous */
-            size_t          am_thresh;
+            size_t          am_thresh[UCP_MAX_MEM_LOCS];
         } rndv_send_nbr;
 
         struct {

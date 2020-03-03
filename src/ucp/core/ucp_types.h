@@ -32,7 +32,9 @@ UCP_UINT_TYPE(UCP_MD_INDEX_BITS)     ucp_md_map_t;
 
 /* Lanes */
 #define UCP_MAX_LANES                6
+#define UCP_MAX_MEM_LOCS             32
 #define UCP_NULL_LANE                ((ucp_lane_index_t)-1)
+typedef uint8_t                      ucp_mem_loc_index_t;
 typedef uint8_t                      ucp_lane_index_t;
 typedef uint8_t                      ucp_lane_map_t;
 

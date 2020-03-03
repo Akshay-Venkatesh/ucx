@@ -1192,7 +1192,9 @@ static ucs_status_t ucp_rndv_pipeline(ucp_request_t *sreq,
         } else {
             /* perform get on memtype endpoint to stage data to host memory */
             mem_type_ep       = worker->mem_type_ep[sreq->send.mem_type];
-            mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0];
+
+	    /* replace first dimension with mem_loc index */
+            mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0][0];
             if (mem_type_rma_lane == UCP_NULL_LANE) {
                 return UCS_ERR_UNSUPPORTED;
             }
@@ -1259,7 +1261,9 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_rndv_atp_handler,
         /* perform a put zcopy on memtype endpoint to stage from
          * frag recv buffer to memtype recv buffer */
         mem_type_ep       = worker->mem_type_ep[rreq->recv.mem_type];
-        mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0];
+
+	/* replace first dimension with mem_loc index */
+        mem_type_rma_lane = ucp_ep_config(mem_type_ep)->key.rma_bw_lanes[0][0];
         if (mem_type_rma_lane == UCP_NULL_LANE) {
             ucs_fatal("no rma bw lane to stage from stage buffer to"
                        " memory type recv buffer");

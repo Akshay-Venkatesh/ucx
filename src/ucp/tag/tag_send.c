@@ -218,8 +218,8 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_send_nb,
     ucp_tag_send_req_init(req, ep, buffer, datatype, count, tag, 0);
 
     ret = ucp_tag_send_req(req, count, &ucp_ep_config(ep)->tag.eager,
-                           ucp_ep_config(ep)->tag.rndv.rma_thresh,
-                           ucp_ep_config(ep)->tag.rndv.am_thresh,
+                           ucp_ep_config(ep)->tag.rndv.rma_thresh[0],
+                           ucp_ep_config(ep)->tag.rndv.am_thresh[0],
                            cb, ucp_ep_config(ep)->tag.proto, 1);
 out:
     UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(ep->worker);
@@ -252,8 +252,8 @@ UCS_PROFILE_FUNC(ucs_status_t, ucp_tag_send_nbr,
     ucp_tag_send_req_init(req, ep, buffer, datatype, count, tag, 0);
 
     ret = ucp_tag_send_req(req, count, &ucp_ep_config(ep)->tag.eager,
-                           ucp_ep_config(ep)->tag.rndv_send_nbr.rma_thresh,
-                           ucp_ep_config(ep)->tag.rndv_send_nbr.am_thresh,
+                           ucp_ep_config(ep)->tag.rndv_send_nbr.rma_thresh[0],
+                           ucp_ep_config(ep)->tag.rndv_send_nbr.am_thresh[0],
                            NULL, ucp_ep_config(ep)->tag.proto, 0);
 
     UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(ep->worker);
@@ -301,8 +301,8 @@ UCS_PROFILE_FUNC(ucs_status_ptr_t, ucp_tag_send_sync_nb,
                           UCP_REQUEST_FLAG_SYNC);
 
     ret = ucp_tag_send_req(req, count, &ucp_ep_config(ep)->tag.eager,
-                           ucp_ep_config(ep)->tag.rndv.rma_thresh,
-                           ucp_ep_config(ep)->tag.rndv.am_thresh,
+                           ucp_ep_config(ep)->tag.rndv.rma_thresh[0],
+                           ucp_ep_config(ep)->tag.rndv.am_thresh[0],
                            cb, ucp_ep_config(ep)->tag.sync_proto, 1);
 out:
     UCP_WORKER_THREAD_CS_EXIT_CONDITIONAL(ep->worker);
