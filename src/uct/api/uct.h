@@ -21,6 +21,7 @@
 #include <ucs/type/cpu_set.h>
 #include <ucs/stats/stats_fwd.h>
 #include <ucs/sys/compiler_def.h>
+#include <ucs/sys/topo.h>
 
 #include <sys/socket.h>
 #include <stdio.h>
@@ -1195,6 +1196,7 @@ struct uct_md_attr {
         uint64_t             reg_mem_types; /**< Bitmap of memory types that Memory Domain can be registered with */
         uint64_t             detect_mem_types; /**< Bitmap of memory types that Memory Domain can detect if address belongs to it */
         ucs_memory_type_t    access_mem_type; /**< Memory type MD can access */
+        uint8_t              detect_sys_dev; /**< MD can detect system devices */
     } cap;
 
     uct_linear_growth_t      reg_cost;  /**< Memory registration cost estimation
@@ -2045,6 +2047,35 @@ ucs_status_t uct_md_mem_dereg(uct_md_h md, uct_mem_h memh);
 ucs_status_t uct_md_detect_memory_type(uct_md_h md, const void *addr,
                                        size_t length,
                                        ucs_memory_type_t *mem_type_p);
+
+
+/**
+ * @ingroup UCT_MD
+ * @brief Get system device(s) that MD may return
+ *
+ *
+ * @param [in]     md           Memory domain to detect memory type
+ * @param [out]    count        Number of system devices returned
+ * @param [out]    sys_dev_p    List of system devices
+ * @return UCS_OK               If >= 0 number of system devices are returned
+ *         UCS_ERR_IO_ERROR     Failed to detect system devices successfully
+ */
+ucs_status_t uct_md_get_sys_device(uct_md_h md, unsigned *count,
+                                   ucs_sys_device_t **sys_dev_p);
+
+
+/**
+ * @ingroup UCT_MD
+ * @brief Return system device(s) list
+ *
+ *
+ * @param [in]     md           Memory domain to detect memory type
+ * @param [out]    sys_dev_p    List of system devices
+ * @return UCS_OK               If system devices are returned successfully
+ *         UCS_ERR_IO_ERROR     If could not free resources
+ */
+ucs_status_t uct_md_put_sys_device(uct_md_h md,
+                                   ucs_sys_device_t *sys_dev_p);
 
 
 /**

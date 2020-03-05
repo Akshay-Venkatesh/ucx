@@ -30,6 +30,7 @@ static ucs_status_t uct_cuda_ipc_md_query(uct_md_h md, uct_md_attr_t *md_attr)
     md_attr->cap.reg_mem_types    = UCS_BIT(UCS_MEMORY_TYPE_CUDA);
     md_attr->cap.access_mem_type  = UCS_MEMORY_TYPE_CUDA;
     md_attr->cap.detect_mem_types = 0;
+    md_attr->cap.detect_sys_dev   = 0;
     md_attr->cap.max_alloc        = 0;
     md_attr->cap.max_reg          = ULONG_MAX;
     md_attr->rkey_packed_size     = sizeof(uct_cuda_ipc_key_t);
@@ -262,6 +263,8 @@ uct_cuda_ipc_md_open(uct_component_t *component, const char *md_name,
         .mem_reg            = uct_cuda_ipc_mem_reg,
         .mem_dereg          = uct_cuda_ipc_mem_dereg,
         .detect_memory_type = ucs_empty_function_return_unsupported,
+        .get_sys_device     = ucs_empty_function_return_unsupported,
+        .put_sys_device     = ucs_empty_function_return_unsupported,
     };
 
     int num_devices;

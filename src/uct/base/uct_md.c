@@ -429,3 +429,15 @@ ucs_status_t uct_md_detect_memory_type(uct_md_h md, const void *addr, size_t len
 {
     return md->ops->detect_memory_type(md, addr, length, mem_type_p);
 }
+
+ucs_status_t uct_md_get_sys_device(uct_md_h md, unsigned *count,
+                                   ucs_sys_device_t **sys_dev_p)
+{
+    return md->ops->get_sys_device(md, count, sys_dev_p);
+}
+
+ucs_status_t uct_md_put_sys_device(uct_md_h md,
+                                   ucs_sys_device_t *sys_dev_p)
+{
+    return md->ops->put_sys_device(md, sys_dev_p);
+}

@@ -147,6 +147,8 @@ uct_cma_md_open(uct_component_t *component, const char *md_name,
         .mem_reg            = uct_cma_mem_reg,
         .mem_dereg          = (uct_md_mem_dereg_func_t)ucs_empty_function_return_success,
         .detect_memory_type = ucs_empty_function_return_unsupported,
+        .get_sys_device     = ucs_empty_function_return_unsupported,
+        .put_sys_device     = ucs_empty_function_return_unsupported,
     };
     static uct_md_t md = {
         .ops          = &md_ops,
@@ -164,6 +166,7 @@ ucs_status_t uct_cma_md_query(uct_md_h md, uct_md_attr_t *md_attr)
     md_attr->cap.reg_mem_types    = UCS_MEMORY_TYPES_CPU_ACCESSIBLE;
     md_attr->cap.access_mem_type  = UCS_MEMORY_TYPE_HOST;
     md_attr->cap.detect_mem_types = 0;
+    md_attr->cap.detect_sys_dev   = 0;
     md_attr->cap.max_alloc        = 0;
     md_attr->cap.max_reg          = ULONG_MAX;
     md_attr->reg_cost.overhead    = 9e-9;

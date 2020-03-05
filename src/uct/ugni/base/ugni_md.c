@@ -38,6 +38,7 @@ static ucs_status_t uct_ugni_md_query(uct_md_h md, uct_md_attr_t *md_attr)
     md_attr->cap.reg_mem_types    = UCS_MEMORY_TYPES_CPU_ACCESSIBLE;
     md_attr->cap.access_mem_type  = UCS_MEMORY_TYPE_HOST;
     md_attr->cap.detect_mem_types = 0;
+    md_attr->cap.detect_sys_dev   = 0;
     md_attr->cap.max_alloc        = 0;
     md_attr->cap.max_reg          = ULONG_MAX;
     md_attr->reg_cost.overhead    = 1000.0e-9;
@@ -188,6 +189,8 @@ uct_ugni_md_open(uct_component_h component,const char *md_name,
         .mem_dereg          = uct_ugni_mem_dereg,
         .mkey_pack          = uct_ugni_rkey_pack,
         .detect_memory_type = ucs_empty_function_return_unsupported,
+        .get_sys_device     = ucs_empty_function_return_unsupported,
+        .put_sys_device     = ucs_empty_function_return_unsupported,
     };
 
     static uct_ugni_md_t md = {

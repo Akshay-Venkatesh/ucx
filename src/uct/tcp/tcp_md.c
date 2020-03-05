@@ -47,7 +47,9 @@ uct_tcp_md_open(uct_component_t *component, const char *md_name,
         .mkey_pack          = ucs_empty_function_return_success,
         .mem_reg            = uct_tcp_md_mem_reg,
         .mem_dereg          = ucs_empty_function_return_success,
-        .detect_memory_type = ucs_empty_function_return_unsupported
+        .detect_memory_type = ucs_empty_function_return_unsupported,
+        .get_sys_device     = ucs_empty_function_return_unsupported,
+        .put_sys_device     = ucs_empty_function_return_unsupported,
     };
     static uct_md_t md = {
         .ops          = &md_ops,
