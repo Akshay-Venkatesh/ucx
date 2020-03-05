@@ -126,8 +126,8 @@ static uct_md_ops_t md_ops = {
     .mem_reg             = uct_cuda_copy_mem_reg,
     .mem_dereg           = uct_cuda_copy_mem_dereg,
     .detect_memory_type  = uct_cuda_base_detect_memory_type,
-    .get_sys_device      = ucs_empty_function_return_unsupported,
-    .put_sys_device      = ucs_empty_function_return_unsupported,
+    .get_sys_device      = uct_cuda_base_md_get_sys_device,
+    .put_sys_device      = uct_cuda_base_md_put_sys_device,
 };
 
 static ucs_status_t
