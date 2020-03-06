@@ -93,6 +93,7 @@ noinst_HEADERS = \
 	sys/compiler.h \
 	sys/module.h \
 	sys/sys.h \
+	sys/topo.h \
 	sys/iovec.h \
 	time/time.h \
 	time/timerq.h \
@@ -146,6 +147,7 @@ libucs_la_SOURCES = \
 	sys/module.c \
 	sys/string.c \
 	sys/sys.c \
+	sys/topo.c \
 	sys/iovec.c \
 	sys/sock.c \
 	sys/stubs.c \

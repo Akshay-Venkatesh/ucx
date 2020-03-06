@@ -75,6 +75,34 @@ ucs_status_t ucs_topo_get_distance(const ucs_sys_device_t *device1,
 
 
 /**
+ * Get an array of system devices structures given path of devices and prefix
+ * @param [in]  dev_loc      location of devices. 
+ *                           eg: /sys/bus/pci/drivers/mlx5_core
+ * @param [in]  prefix       prefix of device names
+ *                           eg: 0000 in 0000:05:00.0
+ * @param [out] num_devices  number devices found in dev_loc that match prefix
+ * @param [out] sys_devices  array populated with devices found
+ *                           must be freed using ucs_topo_put_sys_device
+ *
+ * @return UCS_OK or error in case of error locating/populating sys devices 
+ */
+ucs_status_t ucs_topo_get_sys_device(char *dev_loc, char *prefix,
+                                     unsigned *num_devices,
+                                     ucs_sys_device_t **sys_devices);
+
+
+/**
+ * Release array of system device structures allocated during
+ * ucs_topo_get_sys_device
+ *
+ * @param [in/out] sys_devices return variable of ucs_topo_get_sys_device
+ *
+ * @return UCS_OK or error in releasing resources
+ */
+ucs_status_t ucs_topo_put_sys_device(ucs_sys_device_t *sys_devices);
+
+
+/**
  * Print a map indicating the topology information between system
  * devices discovered
  */
