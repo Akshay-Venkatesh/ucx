@@ -22,18 +22,12 @@
 #include <numaif.h>
 #include <math.h>
 
-static int ucs_get_bus_id(char *name)
+static int ucs_get_bus_id(const char *name)
 {
     char delim[] = ":";
     char *rval   = NULL;
     char *str    = NULL;
-    char *str_p  = NULL;
-    int count    = 0;
     int bus_id   = 0;
-    size_t idx;
-    int value;
-    int pow_factor;
-    size_t len;
 
     if (NULL == strchr(name, (int) ':')) {
         /* if no colon in path name then no valid bus id */
@@ -45,31 +39,21 @@ static int ucs_get_bus_id(char *name)
     if (NULL == str) {
         return -1;
     }
-    str_p = str;
     strcpy(str, name);
 
-    do {
-        rval = strtok(str, delim);
-        str = NULL;
-        count++;
-    } while ((count < 2) && (rval != NULL)); /* for 0000:0c:00.0 bus id = 0c */
+    strtok(str, delim);
+    rval = strtok(NULL, delim);
 
-    if (rval == NULL) {
+    if (NULL == rval) {
         ucs_error("unable to find bus_id from path; setting bus_id = -1");
-        ucs_free(str_p);
+        ucs_free(str);
         return -1;
     }
 
-    len = strlen(rval);
-    for (idx = 0; idx < len; idx++) {
-        pow_factor = pow(16, len - 1 - idx);
-        value = (rval[idx] >= 'a') ? ((rval[idx] - 'a') + 10) : (rval[idx] - '0');
-        value *= pow_factor;
-        bus_id += value;
-    }
+    bus_id = strtol(rval, NULL, 16);
 
     ucs_warn("dev name = %s bus_id = %d", name, bus_id);
-    ucs_free(str_p);
+    ucs_free(str);
 
     return bus_id;
 }
