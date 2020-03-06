@@ -12,6 +12,7 @@
 #include "mm_md.h"
 
 #include <ucs/debug/log.h>
+#include <ucs/sys/topo.h>
 #include <inttypes.h>
 #include <limits.h>
 
@@ -92,6 +93,18 @@ ucs_status_t uct_mm_rkey_ptr(uct_component_t *component, uct_rkey_t rkey,
     /* rkey stores offset from the remote va */
     *laddr_p = UCS_PTR_BYTE_OFFSET(raddr, (ptrdiff_t)rkey);
     return UCS_OK;
+}
+
+ucs_status_t uct_mm_md_get_sys_device(uct_md_h md, unsigned *count,
+                                      ucs_sys_device_t **sys_dev_p)
+{
+    return ucs_topo_get_sys_device("/sys/devices/system/node", "node",
+                                   count, sys_dev_p);
+}
+
+ucs_status_t uct_mm_md_put_sys_device(uct_md_h md, ucs_sys_device_t *sys_dev_p)
+{
+    return ucs_topo_put_sys_device(sys_dev_p);
 }
 
 ucs_status_t uct_mm_md_open(uct_component_t *component, const char *md_name,
