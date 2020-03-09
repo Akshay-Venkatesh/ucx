@@ -2074,8 +2074,8 @@ ucs_status_t uct_md_get_sys_device(uct_md_h md, unsigned *count,
  * @return UCS_OK               If system devices are returned successfully
  *         UCS_ERR_IO_ERROR     If could not free resources
  */
-ucs_status_t uct_md_put_sys_device(uct_md_h md,
-                                   ucs_sys_device_t *sys_dev_p);
+ucs_status_t uct_md_release_sys_device(uct_md_h md,
+                                       ucs_sys_device_t *sys_dev_p);
 
 
 /**

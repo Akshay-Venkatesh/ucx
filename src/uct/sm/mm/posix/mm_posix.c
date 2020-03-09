@@ -662,7 +662,7 @@ static uct_mm_md_mapper_ops_t uct_posix_md_ops = {
         .is_sockaddr_accessible = (uct_md_is_sockaddr_accessible_func_t)ucs_empty_function_return_zero,
         .detect_memory_type     = (uct_md_detect_memory_type_func_t)ucs_empty_function_return_unsupported,
         .get_sys_device         = uct_mm_md_get_sys_device,
-        .put_sys_device         = uct_mm_md_put_sys_device,
+        .release_sys_device     = uct_mm_md_release_sys_device,
     },
    .query                       = (uct_mm_mapper_query_func_t)
                                       ucs_empty_function_return_success,

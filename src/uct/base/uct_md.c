@@ -436,8 +436,8 @@ ucs_status_t uct_md_get_sys_device(uct_md_h md, unsigned *count,
     return md->ops->get_sys_device(md, count, sys_dev_p);
 }
 
-ucs_status_t uct_md_put_sys_device(uct_md_h md,
-                                   ucs_sys_device_t *sys_dev_p)
+ucs_status_t uct_md_release_sys_device(uct_md_h md,
+                                       ucs_sys_device_t *sys_dev_p)
 {
-    return md->ops->put_sys_device(md, sys_dev_p);
+    return md->ops->release_sys_device(md, sys_dev_p);
 }

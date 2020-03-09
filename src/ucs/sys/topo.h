@@ -82,7 +82,7 @@ ucs_status_t ucs_topo_get_distance(const ucs_sys_device_t *device1,
  *                           eg: 0000 in 0000:05:00.0
  * @param [out] num_devices  number devices found in dev_loc that match prefix
  * @param [out] sys_devices  array populated with devices found
- *                           must be freed using ucs_topo_put_sys_device
+ *                           must be freed using ucs_topo_release_sys_device
  *
  * @return UCS_OK or error in case of error locating/populating sys devices 
  */
@@ -99,7 +99,7 @@ ucs_status_t ucs_topo_get_sys_device(char *dev_loc, char *prefix,
  *
  * @return UCS_OK or error in releasing resources
  */
-ucs_status_t ucs_topo_put_sys_device(ucs_sys_device_t *sys_devices);
+ucs_status_t ucs_topo_release_sys_device(ucs_sys_device_t *sys_devices);
 
 
 /**

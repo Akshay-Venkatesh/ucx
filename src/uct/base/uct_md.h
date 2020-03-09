@@ -76,7 +76,7 @@ typedef ucs_status_t (*uct_md_detect_memory_type_func_t)(uct_md_h md,
 typedef ucs_status_t (*uct_md_get_sys_device_func_t)(uct_md_h md, unsigned *count,
                                                      ucs_sys_device_t **sys_dev_p);
 
-typedef ucs_status_t (*uct_md_put_sys_device_func_t)(uct_md_h md,
+typedef ucs_status_t (*uct_md_release_sys_device_func_t)(uct_md_h md,
                                                      ucs_sys_device_t *sys_dev_p);
 
 
@@ -95,7 +95,7 @@ struct uct_md_ops {
     uct_md_is_sockaddr_accessible_func_t is_sockaddr_accessible;
     uct_md_detect_memory_type_func_t     detect_memory_type;
     uct_md_get_sys_device_func_t         get_sys_device;
-    uct_md_put_sys_device_func_t         put_sys_device;
+    uct_md_release_sys_device_func_t     release_sys_device;
 };
 
 

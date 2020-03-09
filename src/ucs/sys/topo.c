@@ -62,12 +62,12 @@ ucs_status_t ucs_topo_get_sys_device(char *dev_loc, char *match,
                                      unsigned *num_devices,
                                      ucs_sys_device_t **sys_devices)
 {
+    ucs_status_t status = UCS_OK;
+    char *fpaths        = NULL;
     char *dest, *src;
     struct dirent **namelist;
     int n, i;
-    char *fpaths;
     ucs_sys_device_t *sys_dev_p;
-    ucs_status_t status = UCS_OK;
 
     *num_devices = 0;
 
@@ -121,7 +121,7 @@ out:
     return status;
 }
 
-ucs_status_t ucs_topo_put_sys_device(ucs_sys_device_t *sys_devices)
+ucs_status_t ucs_topo_release_sys_device(ucs_sys_device_t *sys_devices)
 {
     ucs_free(sys_devices);
     return UCS_OK;

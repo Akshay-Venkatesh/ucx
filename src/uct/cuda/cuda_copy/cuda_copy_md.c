@@ -127,7 +127,7 @@ static uct_md_ops_t md_ops = {
     .mem_dereg           = uct_cuda_copy_mem_dereg,
     .detect_memory_type  = uct_cuda_base_detect_memory_type,
     .get_sys_device      = uct_cuda_base_md_get_sys_device,
-    .put_sys_device      = uct_cuda_base_md_put_sys_device,
+    .release_sys_device  = uct_cuda_base_md_release_sys_device,
 };
 
 static ucs_status_t

@@ -355,7 +355,7 @@ static ucs_status_t uct_self_md_open(uct_component_t *component, const char *md_
         .mem_dereg          = ucs_empty_function_return_success,
         .detect_memory_type = ucs_empty_function_return_unsupported,
         .get_sys_device     = ucs_empty_function_return_unsupported,
-        .put_sys_device     = ucs_empty_function_return_unsupported,
+        .release_sys_device = ucs_empty_function_return_unsupported,
     };
     static uct_md_t md = {
         .ops          = &md_ops,

@@ -264,7 +264,7 @@ static uct_md_ops_t md_ops = {
     .mem_dereg           = uct_gdr_copy_mem_dereg,
     .detect_memory_type  = ucs_empty_function_return_unsupported,
     .get_sys_device      = ucs_empty_function_return_unsupported,
-    .put_sys_device      = ucs_empty_function_return_unsupported,
+    .release_sys_device  = ucs_empty_function_return_unsupported,
 };
 
 static inline uct_gdr_copy_rcache_region_t*
@@ -311,7 +311,7 @@ static uct_md_ops_t md_rcache_ops = {
     .mem_dereg           = uct_gdr_copy_mem_rcache_dereg,
     .detect_memory_type  = ucs_empty_function_return_unsupported,
     .get_sys_device      = ucs_empty_function_return_unsupported,
-    .put_sys_device      = ucs_empty_function_return_unsupported,
+    .release_sys_device  = ucs_empty_function_return_unsupported,
 };
 
 static ucs_status_t

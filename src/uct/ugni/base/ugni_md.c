@@ -190,7 +190,7 @@ uct_ugni_md_open(uct_component_h component,const char *md_name,
         .mkey_pack          = uct_ugni_rkey_pack,
         .detect_memory_type = ucs_empty_function_return_unsupported,
         .get_sys_device     = ucs_empty_function_return_unsupported,
-        .put_sys_device     = ucs_empty_function_return_unsupported,
+        .release_sys_device = ucs_empty_function_return_unsupported,
     };
 
     static uct_ugni_md_t md = {

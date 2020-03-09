@@ -194,7 +194,7 @@ ucs_status_t uct_mm_rkey_ptr(uct_component_t *component, uct_rkey_t rkey,
 ucs_status_t uct_mm_md_get_sys_device(uct_md_h md, unsigned *count,
                                       ucs_sys_device_t **sys_dev_p);
 
-ucs_status_t uct_mm_md_put_sys_device(uct_md_h md, ucs_sys_device_t *sys_dev_p);
+ucs_status_t uct_mm_md_release_sys_device(uct_md_h md, ucs_sys_device_t *sys_dev_p);
 
 ucs_status_t uct_mm_md_open(uct_component_t *component, const char *md_name,
                             const uct_md_config_t *config, uct_md_h *md_p);

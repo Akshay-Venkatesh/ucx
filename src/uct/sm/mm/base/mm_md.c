@@ -102,9 +102,9 @@ ucs_status_t uct_mm_md_get_sys_device(uct_md_h md, unsigned *count,
                                    count, sys_dev_p);
 }
 
-ucs_status_t uct_mm_md_put_sys_device(uct_md_h md, ucs_sys_device_t *sys_dev_p)
+ucs_status_t uct_mm_md_release_sys_device(uct_md_h md, ucs_sys_device_t *sys_dev_p)
 {
-    return ucs_topo_put_sys_device(sys_dev_p);
+    return ucs_topo_release_sys_device(sys_dev_p);
 }
 
 ucs_status_t uct_mm_md_open(uct_component_t *component, const char *md_name,

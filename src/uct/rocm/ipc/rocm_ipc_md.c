@@ -117,7 +117,7 @@ uct_rocm_ipc_md_open(uct_component_h component, const char *md_name,
         .mem_dereg          = uct_rocm_ipc_mem_dereg,
         .detect_memory_type = ucs_empty_function_return_unsupported,
         .get_sys_device     = ucs_empty_function_return_unsupported,
-        .put_sys_device     = ucs_empty_function_return_unsupported,
+        .release_sys_device = ucs_empty_function_return_unsupported,
 
     };
     static uct_md_t md = {

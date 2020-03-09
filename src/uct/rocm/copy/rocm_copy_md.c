@@ -113,7 +113,7 @@ static uct_md_ops_t md_ops = {
     .mem_dereg           = uct_rocm_copy_mem_dereg,
     .detect_memory_type  = uct_rocm_base_detect_memory_type,
     .get_sys_device      = ucs_empty_function_return_unsupported,
-    .put_sys_device      = ucs_empty_function_return_unsupported,
+    .release_sys_device  = ucs_empty_function_return_unsupported,
 
 };
 
