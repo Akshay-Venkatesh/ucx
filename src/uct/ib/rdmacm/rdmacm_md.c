@@ -26,6 +26,8 @@ static uct_md_ops_t uct_rdmacm_md_ops = {
     .query                   = uct_rdmacm_md_query,
     .is_sockaddr_accessible  = uct_rdmacm_is_sockaddr_accessible,
     .detect_memory_type      = ucs_empty_function_return_unsupported,
+    .get_sys_device          = ucs_empty_function_return_unsupported,
+    .release_sys_device      = ucs_empty_function_return_unsupported,
 };
 
 static void uct_rdmacm_md_close(uct_md_h md)
@@ -40,6 +42,7 @@ ucs_status_t uct_rdmacm_md_query(uct_md_h md, uct_md_attr_t *md_attr)
     md_attr->cap.reg_mem_types    = 0;
     md_attr->cap.access_mem_type  = UCS_MEMORY_TYPE_HOST;
     md_attr->cap.detect_mem_types = 0;
+    md_attr->cap.detect_sys_dev   = 0;
     md_attr->cap.max_alloc        = 0;
     md_attr->cap.max_reg          = 0;
     md_attr->rkey_packed_size     = 0;

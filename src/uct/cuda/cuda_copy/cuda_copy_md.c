@@ -31,6 +31,7 @@ static ucs_status_t uct_cuda_copy_md_query(uct_md_h md, uct_md_attr_t *md_attr)
     md_attr->cap.access_mem_type  = UCS_MEMORY_TYPE_CUDA;
     md_attr->cap.detect_mem_types = UCS_BIT(UCS_MEMORY_TYPE_CUDA) |
                                     UCS_BIT(UCS_MEMORY_TYPE_CUDA_MANAGED);
+    md_attr->cap.detect_sys_dev   = 1;
     md_attr->cap.max_alloc        = 0;
     md_attr->cap.max_reg          = ULONG_MAX;
     md_attr->rkey_packed_size     = 0;
@@ -125,6 +126,8 @@ static uct_md_ops_t md_ops = {
     .mem_reg             = uct_cuda_copy_mem_reg,
     .mem_dereg           = uct_cuda_copy_mem_dereg,
     .detect_memory_type  = uct_cuda_base_detect_memory_type,
+    .get_sys_device      = uct_cuda_base_md_get_sys_device,
+    .release_sys_device  = uct_cuda_base_md_release_sys_device,
 };
 
 static ucs_status_t

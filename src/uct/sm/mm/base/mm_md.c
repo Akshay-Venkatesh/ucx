@@ -12,6 +12,7 @@
 #include "mm_md.h"
 
 #include <ucs/debug/log.h>
+#include <ucs/sys/topo.h>
 #include <inttypes.h>
 #include <limits.h>
 
@@ -76,6 +77,7 @@ void uct_mm_md_query(uct_md_h md, uct_md_attr_t *md_attr, int support_alloc)
     md_attr->cap.max_alloc        = 0;
     md_attr->cap.access_mem_type  = UCS_MEMORY_TYPE_HOST;
     md_attr->cap.detect_mem_types = 0;
+    md_attr->cap.detect_sys_dev   = 1;
 
     if (support_alloc) {
         md_attr->cap.flags       |= UCT_MD_FLAG_ALLOC | UCT_MD_FLAG_FIXED;
@@ -91,6 +93,18 @@ ucs_status_t uct_mm_rkey_ptr(uct_component_t *component, uct_rkey_t rkey,
     /* rkey stores offset from the remote va */
     *laddr_p = UCS_PTR_BYTE_OFFSET(raddr, (ptrdiff_t)rkey);
     return UCS_OK;
+}
+
+ucs_status_t uct_mm_md_get_sys_device(uct_md_h md, unsigned *count,
+                                      ucs_sys_device_t **sys_dev_p)
+{
+    return ucs_topo_get_sys_device("/sys/devices/system/node", "node",
+                                   count, sys_dev_p);
+}
+
+ucs_status_t uct_mm_md_release_sys_device(uct_md_h md, ucs_sys_device_t *sys_dev_p)
+{
+    return ucs_topo_release_sys_device(sys_dev_p);
 }
 
 ucs_status_t uct_mm_md_open(uct_component_t *component, const char *md_name,
