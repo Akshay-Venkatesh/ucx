@@ -17,6 +17,7 @@ extern uct_component_t uct_cuda_copy_component;
  */
 typedef struct uct_cuda_copy_md {
     struct uct_md super;   /**< Domain info */
+    unsigned      nvml_initialized;
 } uct_cuda_copy_md_t;
 
 /**

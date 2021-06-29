@@ -18,6 +18,7 @@
 #include <ucs/profile/profile.h>
 #include <uct/cuda/base/cuda_iface.h>
 #include <cuda_runtime.h>
+#include <nvml.h>
 #include <cuda.h>
 
 
@@ -179,6 +180,9 @@ static ucs_status_t uct_cuda_copy_mem_free(uct_md_h md, uct_mem_h memh)
 static void uct_cuda_copy_md_close(uct_md_h uct_md) {
     uct_cuda_copy_md_t *md = ucs_derived_of(uct_md, uct_cuda_copy_md_t);
 
+    if (md->nvml_initialized) {
+        nvmlShutdown();
+    }
     ucs_free(md);
 }
 
@@ -210,6 +214,13 @@ uct_cuda_copy_md_open(uct_component_t *component, const char *md_name,
     md->super.ops       = &md_ops;
     md->super.component = &uct_cuda_copy_component;
     *md_p               = (uct_md_h)md;
+
+    if (NVML_SUCCESS == nvmlInit()) {
+        md->nvml_initialized = 1;
+    } else {
+        md->nvml_initialized = 0;
+    }
+
     return UCS_OK;
 }
 
