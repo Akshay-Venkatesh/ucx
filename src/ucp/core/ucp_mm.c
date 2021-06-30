@@ -118,7 +118,8 @@ ucs_status_t ucp_mem_rereg_mds(ucp_context_h context, ucp_md_map_t reg_md_map,
             base_address = address;
             reg_length   = length;
 
-            if (context->config.ext.reg_whole_alloc_bitmap & UCS_BIT(mem_type)) {
+            if ((context->memtype_cache == NULL) &&
+                (context->config.ext.reg_whole_alloc_bitmap & UCS_BIT(mem_type))) {
                 ucp_memory_detect_internal(context, address, length, &mem_info);
                 base_address = mem_info.base_address;
                 reg_length   = mem_info.alloc_length;
