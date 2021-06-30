@@ -14,6 +14,7 @@
 #include <ucs/sys/module.h>
 #include <ucs/profile/profile.h>
 #include <ucs/debug/log.h>
+#include <uct/cuda/cuda_copy/cuda_copy_md.h>
 #include <cuda_runtime.h>
 #include <nvml.h>
 #include <cuda.h>
@@ -82,6 +83,7 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_base_mem_query,
                  uct_md_mem_attr_t *mem_attr)
 {
 #define UCT_CUDA_MEM_QUERY_NUM_ATTRS 3
+    uct_cuda_copy_md_t *cu_md  = ucs_derived_of(md, uct_cuda_copy_md_t);
     CUmemorytype cuda_mem_mype = (CUmemorytype)0;
     uint32_t is_managed        = 0;
     unsigned value             = 1;
@@ -97,7 +99,7 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_base_mem_query,
     int bus_id;
     ucs_status_t status;
     CUresult cu_err;
-    nvmlDevice_t nvml_device;
+    nvmlDevice_t *nvml_device;
     nvmlBAR1Memory_t bar1_mem;
     nvmlReturn_t nvml_err;
 
@@ -160,33 +162,39 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_base_mem_query,
                 return UCS_ERR_INVALID_ADDR;
             }
 
-            cu_err = cuDeviceGetAttribute((int *)&bus_id,
-                                          CU_DEVICE_ATTRIBUTE_PCI_BUS_ID,
-                                          cuda_device);
-            if (cu_err != CUDA_SUCCESS) {
-                cuGetErrorString(cu_err, &cu_err_str);
-                ucs_error("cuDeviceGetAttribute error: %s", cu_err_str);
-                return UCS_ERR_IO_ERROR;
-            }
-
-            sprintf(bus_id_str, "00000000:%02x:00.0", bus_id);
-
-            nvml_err = nvmlDeviceGetHandleByPciBusId(bus_id_str, &nvml_device);
-            if (nvml_err != NVML_SUCCESS) {
-                ucs_error("nvmlDeviceGetHandleByPciBusId error: %s",
-                          nvmlErrorString(nvml_err));
-            }
-
-            nvml_err = nvmlDeviceGetBAR1MemoryInfo(nvml_device, &bar1_mem);
-            if (nvml_err == NVML_SUCCESS) {
-                if (bar1_mem.bar1Free < alloc_length) {
-                    alloc_length = length;
-                    base_address = (void*)address;
+            pthread_rwlock_wrlock(&cu_md->lock);
+            nvml_device = &cu_md->nvml_device[cuda_device];
+            if ((cu_md->nvml_initialized == 1) && (*nvml_device == 0)) {
+                cu_err = cuDeviceGetAttribute((int *)&bus_id,
+                                              CU_DEVICE_ATTRIBUTE_PCI_BUS_ID,
+                                              cuda_device);
+                if (cu_err != CUDA_SUCCESS) {
+                    cuGetErrorString(cu_err, &cu_err_str);
+                    ucs_error("cuDeviceGetAttribute error: %s", cu_err_str);
+                    return UCS_ERR_IO_ERROR;
                 }
-            } else {
-                ucs_error("nvmlDeviceGetBAR1MemoryInfo error: %s",
-                          nvmlErrorString(nvml_err));
+
+                sprintf(bus_id_str, "00000000:%02x:00.0", bus_id);
+
+                nvml_err = nvmlDeviceGetHandleByPciBusId(bus_id_str,
+                                                         nvml_device);
+                if (nvml_err != NVML_SUCCESS) {
+                    ucs_error("nvmlDeviceGetHandleByPciBusId error: %s",
+                            nvmlErrorString(nvml_err));
+                }
+
+                nvml_err = nvmlDeviceGetBAR1MemoryInfo(*nvml_device, &bar1_mem);
+                if (nvml_err == NVML_SUCCESS) {
+                    if (bar1_mem.bar1Free < alloc_length) {
+                        alloc_length = length;
+                        base_address = (void*)address;
+                    }
+                } else {
+                    ucs_error("nvmlDeviceGetBAR1MemoryInfo error: %s",
+                            nvmlErrorString(nvml_err));
+                }
             }
+            pthread_rwlock_unlock(&cu_md->lock);
         }
     }
 

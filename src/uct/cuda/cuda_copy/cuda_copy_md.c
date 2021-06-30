@@ -181,6 +181,7 @@ static void uct_cuda_copy_md_close(uct_md_h uct_md) {
     uct_cuda_copy_md_t *md = ucs_derived_of(uct_md, uct_cuda_copy_md_t);
 
     if (md->nvml_initialized) {
+        pthread_rwlock_destroy(&md->lock);
         nvmlShutdown();
     }
     ucs_free(md);
@@ -204,6 +205,8 @@ uct_cuda_copy_md_open(uct_component_t *component, const char *md_name,
                       const uct_md_config_t *config, uct_md_h *md_p)
 {
     uct_cuda_copy_md_t *md;
+    int i;
+    int ret;
 
     md = ucs_malloc(sizeof(uct_cuda_copy_md_t), "uct_cuda_copy_md_t");
     if (NULL == md) {
@@ -216,6 +219,17 @@ uct_cuda_copy_md_open(uct_component_t *component, const char *md_name,
     *md_p               = (uct_md_h)md;
 
     if (NVML_SUCCESS == nvmlInit()) {
+        for (i = 0; i < UCT_CUDA_MAX_DEVICES; i++) {
+            md->nvml_device[i] = 0;
+        }
+
+        ret = pthread_rwlock_init(&md->lock, NULL);
+        if (ret) {
+            ucs_error("pthread_rwlock_init failed: %m");
+            ucs_free(md);
+            return UCS_ERR_IO_ERROR;
+        }
+
         md->nvml_initialized = 1;
     } else {
         md->nvml_initialized = 0;
