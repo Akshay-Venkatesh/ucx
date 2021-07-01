@@ -162,26 +162,30 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_base_mem_query,
                 return UCS_ERR_INVALID_ADDR;
             }
 
-            pthread_rwlock_wrlock(&cu_md->lock);
-            nvml_device = &cu_md->nvml_device[cuda_device];
-            if ((cu_md->nvml_initialized == 1) && (*nvml_device == 0)) {
-                cu_err = cuDeviceGetAttribute((int *)&bus_id,
-                                              CU_DEVICE_ATTRIBUTE_PCI_BUS_ID,
-                                              cuda_device);
-                if (cu_err != CUDA_SUCCESS) {
-                    cuGetErrorString(cu_err, &cu_err_str);
-                    ucs_error("cuDeviceGetAttribute error: %s", cu_err_str);
-                    return UCS_ERR_IO_ERROR;
-                }
+            if (cu_md->nvml_initialized == 1) {
 
-                sprintf(bus_id_str, "00000000:%02x:00.0", bus_id);
+                pthread_rwlock_wrlock(&cu_md->lock);
+                nvml_device = &cu_md->nvml_device[cuda_device];
+                if (*nvml_device == 0) {
+                    cu_err = cuDeviceGetAttribute((int *)&bus_id,
+                            CU_DEVICE_ATTRIBUTE_PCI_BUS_ID,
+                            cuda_device);
+                    if (cu_err != CUDA_SUCCESS) {
+                        cuGetErrorString(cu_err, &cu_err_str);
+                        ucs_error("cuDeviceGetAttribute error: %s", cu_err_str);
+                        return UCS_ERR_IO_ERROR;
+                    }
 
-                nvml_err = nvmlDeviceGetHandleByPciBusId(bus_id_str,
-                                                         nvml_device);
-                if (nvml_err != NVML_SUCCESS) {
-                    ucs_error("nvmlDeviceGetHandleByPciBusId error: %s",
-                            nvmlErrorString(nvml_err));
+                    sprintf(bus_id_str, "00000000:%02x:00.0", bus_id);
+
+                    nvml_err = nvmlDeviceGetHandleByPciBusId(bus_id_str,
+                            nvml_device);
+                    if (nvml_err != NVML_SUCCESS) {
+                        ucs_error("nvmlDeviceGetHandleByPciBusId error: %s",
+                                nvmlErrorString(nvml_err));
+                    }
                 }
+                pthread_rwlock_unlock(&cu_md->lock);
 
                 nvml_err = nvmlDeviceGetBAR1MemoryInfo(*nvml_device, &bar1_mem);
                 if (nvml_err == NVML_SUCCESS) {
@@ -194,7 +198,6 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_base_mem_query,
                             nvmlErrorString(nvml_err));
                 }
             }
-            pthread_rwlock_unlock(&cu_md->lock);
         }
     }
 
