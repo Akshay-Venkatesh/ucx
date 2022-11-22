@@ -9,6 +9,7 @@
 
 #include <ucs/sys/compiler_def.h>
 #include <sys/socket.h>
+#include <stdint.h>
 
 /**
  * Logging levels.
@@ -148,5 +149,65 @@ typedef struct ucs_log_component_config {
     char            name[16];
     const char      *file_filter; /* glob pattern of source files */
 } ucs_log_component_config_t;
+
+
+/**
+ * @ingroup UCS_RESOURCE
+ * @brief UCS Condition types.
+ *
+ * The enumeration allows specifying type of condition.
+ *
+ * When type is queue, then the condition represents enqueuing a request into
+ * the queue and either request is initiated after all entries in the queue
+ * complete; or queue processing restarts after the request completes.
+ *
+ * When type is graph, then the condition represents adding a node to the graph
+ * that depends on all other nodes in the graph to have completed; or the all
+ * nodes in the graph depend on completion of a request represented by the node
+ * added.
+ *
+ * When type is triggered, then the condition represents a tuple <addr, value,
+ * condition>. When the request using the condition is a consumer, then the
+ * request waits for (addr condition value) true state to be reached before
+ * being initiated. If the request is a producer, then completion of the request
+ * results in (addr condition value) being true. In both cases, it is the
+ * responsibility of the user to ensure that (addr condition value) is in false
+ * state prior to using the UCP condition.
+ */
+typedef enum ucs_condition_type {
+    UCP_CONDITION_TYPE_QUEUE,
+    UCP_CONDITION_TYPE_GRAPH,
+    UCP_CONDITION_TYPE_TRIGGERED
+} ucs_condition_type_t;
+
+
+/**
+ * @ingroup UCP_COMM
+ * @brief UCP Condition
+ *
+ * UCP conditions capture opaque objects which serve as producers to or
+ * consumers of UCP requests. For instance, a send request that has a
+ * condition associated with it does not start until execution has arrived at a
+ * point where events captured by UCP condition have completed. This scenario is
+ * a case where the condition acts as a producer. Alternatively, a receive
+ * operation associated with a UCP condition blocks execution on the condition
+ * until the receive completes. In this case, the condition acts as a consumer.
+ */
+typedef struct ucs_condition {
+    ucs_condition_type_t type;               /**< Error handler callback, if NULL,
+                                                  will not be called. */
+    union {
+        void         *context;       /**< User defined argument associated
+                                                   with an endpoint, it will be
+                                                   overridden by
+                                                   @ref ucp_ep_params_t::user_data if
+                                                   both are set. */
+        struct {
+            void     *addr;       /**< User defined argument associated with */
+            uint64_t *val;        /**< User defined argument associated with */
+            uint64_t *inequality; /**< User defined argument associated with */
+        } trigger;
+    } handle;
+} ucs_condition_t;
 
 #endif /* TYPES_H_ */

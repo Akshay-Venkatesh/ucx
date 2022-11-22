@@ -23,6 +23,7 @@
 #include <ucs/stats/stats_fwd.h>
 #include <ucs/sys/compiler_def.h>
 #include <ucs/sys/topo/base/topo.h>
+#include <ucs/config/types.h>
 
 #include <sys/socket.h>
 #include <stdio.h>
@@ -1713,6 +1714,45 @@ struct uct_completion {
 
 /**
  * @ingroup UCT_RESOURCE
+ * @brief UCT endpoint operation fields and flags
+ *
+ * The enumeration allows specifying which fields in @ref ucp_request_param_t are
+ * present and operation flags are used. It is used to enable backward
+ * compatibility support.
+ */
+typedef enum {
+    UCT_EP_OP_ATTR_FIELD_FLAGS     = UCS_BIT(1),  /**< operation-specific flags */
+    UCT_EP_OP_ATTR_FIELD_CONDITION = UCS_BIT(2)   /**< UCT condition field */
+} uct_ep_op_attr_t;
+
+
+/**
+ * @ingroup UCT_RESOURCE
+ * @brief UCT endpoint operation parameter.
+ *
+ */
+struct uct_ep_op_param {
+    /**
+     * Mask of valid fields in this structure and operation flags, using
+     * bits from @ref uct_ep_op_attr_t. Fields not specified in this mask will be
+     * ignored. Provides ABI compatibility with respect to adding new fields.
+     */
+    uint32_t       op_attr_mask;
+
+    /* Operation specific flags. */
+    uint32_t       flags;
+
+    /**
+     * Condition that the request depends on (pre-condition); or a condition
+     * that depends on request completion (post-condition).
+     */
+    ucs_condition_t condition;
+
+};
+
+
+/**
+ * @ingroup UCT_RESOURCE
  * @brief Pending request.
  *
  * This structure should be passed to @ref uct_ep_pending_add() and is used to signal
@@ -2852,11 +2892,38 @@ UCT_INLINE_API ucs_status_t uct_ep_put_short(uct_ep_h ep, const void *buffer, un
  * @ingroup UCT_RMA
  * @brief
  */
+UCT_INLINE_API ucs_status_t uct_ep_put_short_nbx(uct_ep_h ep, const void *buffer, unsigned length,
+                                                 uint64_t remote_addr, uct_rkey_t rkey,
+                                                 const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_put_short_nbx(ep, buffer, length, remote_addr, rkey,
+                                           param);
+}
+
+
+/**
+ * @ingroup UCT_RMA
+ * @brief
+ */
 UCT_INLINE_API ssize_t uct_ep_put_bcopy(uct_ep_h ep, uct_pack_callback_t pack_cb,
                                         void *arg, uint64_t remote_addr,
                                         uct_rkey_t rkey)
 {
     return ep->iface->ops.ep_put_bcopy(ep, pack_cb, arg, remote_addr, rkey);
+}
+
+
+/**
+ * @ingroup UCT_RMA
+ * @brief
+ */
+UCT_INLINE_API ssize_t uct_ep_put_bcopy_nbx(uct_ep_h ep, uct_pack_callback_t pack_cb,
+                                            void *arg, uint64_t remote_addr,
+                                            uct_rkey_t rkey,
+                                            const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_put_bcopy_nbx(ep, pack_cb, arg, remote_addr, rkey,
+                                           param);
 }
 
 
@@ -2898,6 +2965,17 @@ UCT_INLINE_API ucs_status_t uct_ep_put_zcopy(uct_ep_h ep,
 }
 
 
+UCT_INLINE_API ucs_status_t uct_ep_put_zcopy_nbx(uct_ep_h ep,
+                                                 const uct_iov_t *iov, size_t iovcnt,
+                                                 uint64_t remote_addr, uct_rkey_t rkey,
+                                                 uct_completion_t *comp,
+                                                 const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_put_zcopy_nbx(ep, iov, iovcnt, remote_addr, rkey,
+                                           comp, param);
+}
+
+
 /**
  * @ingroup UCT_RMA
  * @brief
@@ -2913,6 +2991,19 @@ UCT_INLINE_API ucs_status_t uct_ep_get_short(uct_ep_h ep, void *buffer, unsigned
  * @ingroup UCT_RMA
  * @brief
  */
+UCT_INLINE_API ucs_status_t uct_ep_get_short_nbx(uct_ep_h ep, void *buffer, unsigned length,
+                                                 uint64_t remote_addr, uct_rkey_t rkey,
+                                                 const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_get_short_nbx(ep, buffer, length, remote_addr, rkey,
+                                           param);
+}
+
+
+/**
+ * @ingroup UCT_RMA
+ * @brief
+ */
 UCT_INLINE_API ucs_status_t uct_ep_get_bcopy(uct_ep_h ep, uct_unpack_callback_t unpack_cb,
                                              void *arg, size_t length,
                                              uint64_t remote_addr, uct_rkey_t rkey,
@@ -2920,6 +3011,21 @@ UCT_INLINE_API ucs_status_t uct_ep_get_bcopy(uct_ep_h ep, uct_unpack_callback_t 
 {
     return ep->iface->ops.ep_get_bcopy(ep, unpack_cb, arg, length, remote_addr,
                                        rkey, comp);
+}
+
+
+/**
+ * @ingroup UCT_RMA
+ * @brief
+ */
+UCT_INLINE_API ucs_status_t uct_ep_get_bcopy_nbx(uct_ep_h ep, uct_unpack_callback_t unpack_cb,
+                                                 void *arg, size_t length,
+                                                 uint64_t remote_addr, uct_rkey_t rkey,
+                                                 uct_completion_t *comp,
+                                                 const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_get_bcopy_nbx(ep, unpack_cb, arg, length, remote_addr,
+                                           rkey, comp, param);
 }
 
 
@@ -2965,10 +3071,38 @@ UCT_INLINE_API ucs_status_t uct_ep_get_zcopy(uct_ep_h ep,
  * @ingroup UCT_AM
  * @brief
  */
+UCT_INLINE_API ucs_status_t uct_ep_get_zcopy_nbx(uct_ep_h ep,
+                                                 const uct_iov_t *iov, size_t iovcnt,
+                                                 uint64_t remote_addr, uct_rkey_t rkey,
+                                                 uct_completion_t *comp,
+                                                 const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_get_zcopy_nbx(ep, iov, iovcnt, remote_addr, rkey,
+                                           comp, param);
+}
+
+
+/**
+ * @ingroup UCT_AM
+ * @brief
+ */
 UCT_INLINE_API ucs_status_t uct_ep_am_short(uct_ep_h ep, uint8_t id, uint64_t header,
                                             const void *payload, unsigned length)
 {
     return ep->iface->ops.ep_am_short(ep, id, header, payload, length);
+}
+
+
+/**
+ * @ingroup UCT_AM
+ * @brief
+ */
+UCT_INLINE_API ucs_status_t uct_ep_am_short_nbx(uct_ep_h ep, uint8_t id, uint64_t header,
+                                                const void *payload, unsigned length,
+                                                const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_am_short_nbx(ep, id, header, payload, length,
+                                          param);
 }
 
 
@@ -3013,11 +3147,37 @@ UCT_INLINE_API ucs_status_t uct_ep_am_short_iov(uct_ep_h ep, uint8_t id,
  * @ingroup UCT_AM
  * @brief
  */
+UCT_INLINE_API ucs_status_t uct_ep_am_short_iov_nbx(uct_ep_h ep, uint8_t id,
+                                                    const uct_iov_t *iov,
+                                                    size_t iovcnt,
+                                                    const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_am_short_iov_nbx(ep, id, iov, iovcnt, param);
+}
+
+
+/**
+ * @ingroup UCT_AM
+ * @brief
+ */
 UCT_INLINE_API ssize_t uct_ep_am_bcopy(uct_ep_h ep, uint8_t id,
                                        uct_pack_callback_t pack_cb, void *arg,
                                        unsigned flags)
 {
     return ep->iface->ops.ep_am_bcopy(ep, id, pack_cb, arg, flags);
+}
+
+
+/**
+ * @ingroup UCT_AM
+ * @brief
+ */
+UCT_INLINE_API ssize_t uct_ep_am_bcopy_nbx(uct_ep_h ep, uint8_t id,
+                                           uct_pack_callback_t pack_cb,
+                                           void *arg, unsigned flags,
+                                           const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_am_bcopy_nbx(ep, id, pack_cb, arg, flags, param);
 }
 
 
@@ -3067,6 +3227,23 @@ UCT_INLINE_API ucs_status_t uct_ep_am_zcopy(uct_ep_h ep, uint8_t id,
 {
     return ep->iface->ops.ep_am_zcopy(ep, id, header, header_length, iov, iovcnt,
                                       flags, comp);
+}
+
+
+/**
+ * @ingroup UCT_AM
+ * @brief Send active message while avoiding local memory copy
+ */
+UCT_INLINE_API ucs_status_t uct_ep_am_zcopy_nbx(uct_ep_h ep, uint8_t id,
+                                               const void *header,
+                                               unsigned header_length,
+                                               const uct_iov_t *iov, size_t iovcnt,
+                                               unsigned flags,
+                                               uct_completion_t *comp,
+                                               const uct_ep_op_param_t *param)
+{
+    return ep->iface->ops.ep_am_zcopy_nbx(ep, id, header, header_length, iov, iovcnt,
+                                          flags, comp, param);
 }
 
 /**

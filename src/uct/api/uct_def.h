@@ -91,6 +91,7 @@ typedef struct uct_iface_params      uct_iface_params_t;
 typedef struct uct_ep_attr           uct_ep_attr_t;
 typedef struct uct_md_attr           uct_md_attr_t;
 typedef struct uct_completion        uct_completion_t;
+typedef struct uct_ep_op_param       uct_ep_op_param_t;
 typedef struct uct_pending_req       uct_pending_req_t;
 typedef struct uct_worker            *uct_worker_h;
 typedef struct uct_md                uct_md_t;

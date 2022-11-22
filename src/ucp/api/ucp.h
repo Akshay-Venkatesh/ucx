@@ -730,6 +730,7 @@ typedef enum {
     UCP_OP_ATTR_FIELD_MEMORY_TYPE   = UCS_BIT(6),  /**< memory type field */
     UCP_OP_ATTR_FIELD_RECV_INFO     = UCS_BIT(7),  /**< recv_info field */
     UCP_OP_ATTR_FIELD_MEMH          = UCS_BIT(8),  /**< memory handle field */
+    UCP_OP_ATTR_FIELD_CONDITION     = UCS_BIT(9),  /**< UCP condition field */
 
     UCP_OP_ATTR_FLAG_NO_IMM_CMPL    = UCS_BIT(16), /**< deny immediate completion */
     UCP_OP_ATTR_FLAG_FAST_CMPL      = UCS_BIT(17), /**< expedite local completion,
@@ -1810,6 +1811,12 @@ typedef struct {
      * The memory handle should be obtained by calling @ref ucp_mem_map.
      */
     ucp_mem_h memh;
+
+    /**
+     * Condition that the request depends on (pre-condition); or a condition
+     * that depends on request completion (post-condition).
+     */
+    ucs_condition_t condition;
 
 } ucp_request_param_t;
 

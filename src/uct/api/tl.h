@@ -44,6 +44,30 @@ typedef ucs_status_t (*uct_ep_put_zcopy_func_t)(uct_ep_h ep,
                                                 uct_rkey_t rkey,
                                                 uct_completion_t *comp);
 
+/* endpoint - put nbx variants */
+
+typedef ucs_status_t (*uct_ep_put_short_nbx_func_t)(uct_ep_h ep,
+                                                    const void *buffer,
+                                                    unsigned length,
+                                                    uint64_t remote_addr,
+                                                    uct_rkey_t rkey,
+                                                    const uct_ep_op_param_t *param);
+
+typedef ssize_t      (*uct_ep_put_bcopy_nbx_func_t)(uct_ep_h ep,
+                                                    uct_pack_callback_t pack_cb,
+                                                    void *arg,
+                                                    uint64_t remote_addr,
+                                                    uct_rkey_t rkey,
+                                                    const uct_ep_op_param_t *param);
+
+typedef ucs_status_t (*uct_ep_put_zcopy_nbx_func_t)(uct_ep_h ep,
+                                                    const uct_iov_t *iov,
+                                                    size_t iovcnt,
+                                                    uint64_t remote_addr,
+                                                    uct_rkey_t rkey,
+                                                    uct_completion_t *comp,
+                                                    const uct_ep_op_param_t *param);
+
 /* endpoint - get */
 
 typedef ucs_status_t (*uct_ep_get_short_func_t)(uct_ep_h ep,
@@ -66,6 +90,32 @@ typedef ucs_status_t (*uct_ep_get_zcopy_func_t)(uct_ep_h ep,
                                                 uint64_t remote_addr,
                                                 uct_rkey_t rkey,
                                                 uct_completion_t *comp);
+
+/* endpoint - get nbx variants */
+
+typedef ucs_status_t (*uct_ep_get_short_nbx_func_t)(uct_ep_h ep,
+                                                    void *buffer,
+                                                    unsigned length,
+                                                    uint64_t remote_addr,
+                                                    uct_rkey_t rkey,
+                                                    const uct_ep_op_param_t *param);
+
+typedef ucs_status_t (*uct_ep_get_bcopy_nbx_func_t)(uct_ep_h ep,
+                                                    uct_unpack_callback_t unpack_cb,
+                                                    void *arg,
+                                                    size_t length,
+                                                    uint64_t remote_addr,
+                                                    uct_rkey_t rkey,
+                                                    uct_completion_t *comp,
+                                                    const uct_ep_op_param_t *param);
+
+typedef ucs_status_t (*uct_ep_get_zcopy_nbx_func_t)(uct_ep_h ep,
+                                                    const uct_iov_t *iov,
+                                                    size_t iovcnt,
+                                                    uint64_t remote_addr,
+                                                    uct_rkey_t rkey,
+                                                    uct_completion_t *comp,
+                                                    const uct_ep_op_param_t *param);
 
 /* endpoint - active message */
 
@@ -93,6 +143,37 @@ typedef ucs_status_t (*uct_ep_am_zcopy_func_t)(uct_ep_h ep,
                                                size_t iovcnt,
                                                unsigned flags,
                                                uct_completion_t *comp);
+
+/* endpoint - active message nbx variants */
+
+typedef ucs_status_t (*uct_ep_am_short_nbx_func_t)(uct_ep_h ep,
+                                                   uint8_t id,
+                                                   uint64_t header,
+                                                   const void *payload,
+                                                   unsigned length,
+                                                   const uct_ep_op_param_t *param);
+
+typedef ucs_status_t (*uct_ep_am_short_iov_nbx_func_t)(uct_ep_h ep, uint8_t id,
+                                                       const uct_iov_t *iov,
+                                                       size_t iovcnt,
+                                                       const uct_ep_op_param_t *param);
+
+typedef ssize_t      (*uct_ep_am_bcopy_nbx_func_t)(uct_ep_h ep,
+                                                   uint8_t id,
+                                                   uct_pack_callback_t pack_cb,
+                                                   void *arg,
+                                                   unsigned flags,
+                                                   const uct_ep_op_param_t *param);
+
+typedef ucs_status_t (*uct_ep_am_zcopy_nbx_func_t)(uct_ep_h ep,
+                                                   uint8_t id,
+                                                   const void *header,
+                                                   unsigned header_length,
+                                                   const uct_iov_t *iov,
+                                                   size_t iovcnt,
+                                                   unsigned flags,
+                                                   uct_completion_t *comp,
+                                                   const uct_ep_op_param_t *param);
 
 /* endpoint - atomics */
 
@@ -309,6 +390,22 @@ typedef struct uct_iface_ops {
     uct_ep_am_short_iov_func_t          ep_am_short_iov;
     uct_ep_am_bcopy_func_t              ep_am_bcopy;
     uct_ep_am_zcopy_func_t              ep_am_zcopy;
+
+    /* endpoint - put nbx variants */
+    uct_ep_put_short_nbx_func_t             ep_put_short_nbx;
+    uct_ep_put_bcopy_nbx_func_t             ep_put_bcopy_nbx;
+    uct_ep_put_zcopy_nbx_func_t             ep_put_zcopy_nbx;
+
+    /* endpoint - get nbx variants */
+    uct_ep_get_short_nbx_func_t             ep_get_short_nbx;
+    uct_ep_get_bcopy_nbx_func_t             ep_get_bcopy_nbx;
+    uct_ep_get_zcopy_nbx_func_t             ep_get_zcopy_nbx;
+
+    /* endpoint - active message nbx variants */
+    uct_ep_am_short_nbx_func_t              ep_am_short_nbx;
+    uct_ep_am_short_iov_nbx_func_t          ep_am_short_iov_nbx;
+    uct_ep_am_bcopy_nbx_func_t              ep_am_bcopy_nbx;
+    uct_ep_am_zcopy_nbx_func_t              ep_am_zcopy_nbx;
 
     /* endpoint - atomics */
     uct_ep_atomic_cswap64_func_t        ep_atomic_cswap64;
