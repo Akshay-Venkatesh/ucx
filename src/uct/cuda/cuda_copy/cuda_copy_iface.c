@@ -368,15 +368,8 @@ static void uct_cuda_copy_event_desc_init(ucs_mpool_t *mp, void *obj, void *chun
 static void uct_cuda_copy_event_desc_cleanup(ucs_mpool_t *mp, void *obj)
 {
     uct_cuda_copy_event_desc_t *base = (uct_cuda_copy_event_desc_t *) obj;
-    uct_cuda_copy_iface_t *iface     = ucs_container_of(mp,
-                                                        uct_cuda_copy_iface_t,
-                                                        cuda_event_desc);
-    CUcontext cuda_context;
 
-    UCT_CUDADRV_FUNC_LOG_ERR(cuCtxGetCurrent(&cuda_context));
-    if (uct_cuda_base_context_match(cuda_context, iface->cuda_context)) {
-        UCT_CUDADRV_FUNC_LOG_ERR(cuEventDestroy(base->event));
-    }
+    UCT_CUDADRV_FUNC_LOG_ERR(cuEventDestroy(base->event));
 }
 
 static ucs_status_t
@@ -469,10 +462,15 @@ void uct_cuda_copy_cleanup_per_ctx_rscs(uct_cuda_copy_per_ctx_rsc_t *ctx_rsc)
     CUstream *stream;
     ucs_queue_head_t *event_q;
     ucs_memory_type_t src, dst;
+	unsigned long long ctx_id;
+    CUresult cu_err;
+    CUcontext popped_ctx;
 
+    cu_err = cuCtxGetId(ctx_rsc->cuda_ctx, &ctx_id);
     /* check if context is still active */
-    if (1) {
+    if (cu_err == CUDA_SUCCESS) {
 
+        cuCtxPushCurrent(ctx_rsc->cuda_ctx);
         ucs_memory_type_for_each(src) {
             ucs_memory_type_for_each(dst) {
                 stream  = &ctx_rsc->queue_desc[src][dst].stream;
@@ -493,9 +491,11 @@ void uct_cuda_copy_cleanup_per_ctx_rscs(uct_cuda_copy_per_ctx_rsc_t *ctx_rsc)
         if (ctx_rsc->short_stream) {
             UCT_CUDADRV_FUNC_LOG_ERR(cuStreamDestroy(ctx_rsc->short_stream));
         }
+
+        ucs_mpool_cleanup(&ctx_rsc->cuda_event_desc, 1);
+        cuCtxPopCurrent(&popped_ctx);
     }
 
-    ucs_mpool_cleanup(&ctx_rsc->cuda_event_desc, 1);
 }
 
 ucs_status_t uct_cuda_copy_init_per_ctx_rscs(uct_cuda_copy_iface_t *iface,

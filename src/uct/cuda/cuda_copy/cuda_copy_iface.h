@@ -50,7 +50,6 @@ typedef struct uct_cuda_copy_queue_desc {
 } uct_cuda_copy_queue_desc_t;
 
 typedef struct uct_cuda_copy_per_ctx_rsc {
-    /* stream used to issue short operations */
     CUcontext                   cuda_ctx;
     unsigned long long          ctx_id;
     /* pool of cuda events to check completion of memcpy operations */
@@ -70,18 +69,10 @@ typedef struct uct_cuda_copy_iface {
     uct_cuda_copy_iface_addr_t  id;
     /* per context resources */
     khash_t(cuda_copy_ctx_rscs) ctx_rscs;
-    /* pool of cuda events to check completion of memcpy operations */
-    ucs_mpool_t                 cuda_event_desc;
     /* list of queues which require progress */
     ucs_queue_head_t            active_queue;
-    /* stream used to issue short operations */
-    CUstream                    short_stream;
     /* fd to get event notifications */
     int                         eventfd;
-    /* stream used to issue short operations */
-    CUcontext                   cuda_context;
-    /* array of queue descriptors for each src/dst memory type combination */
-    uct_cuda_copy_queue_desc_t  queue_desc[UCS_MEMORY_TYPE_LAST][UCS_MEMORY_TYPE_LAST];
     /* config parameters to control cuda copy transport */
     struct {
         unsigned                max_poll;
