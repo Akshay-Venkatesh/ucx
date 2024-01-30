@@ -55,21 +55,26 @@ ucs_status_t uct_cuda_copy_init_stream(CUstream *stream)
 }
 
 static UCS_F_ALWAYS_INLINE CUstream *
-uct_cuda_copy_get_stream(uct_cuda_copy_iface_t *iface,
+uct_cuda_copy_get_stream(uct_cuda_copy_per_ctx_rsc_t *ctx_rsc,
                          ucs_memory_type_t src_type, ucs_memory_type_t dst_type)
 {
-    CUstream *stream = NULL;
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    CUstream *stream            = NULL;
     ucs_status_t status;
+
+    pthread_mutex_lock(&lock);
 
     ucs_assert((src_type < UCS_MEMORY_TYPE_LAST) &&
                (dst_type < UCS_MEMORY_TYPE_LAST));
 
-    stream = &iface->queue_desc[src_type][dst_type].stream;
+    stream = &ctx_rsc->queue_desc[src_type][dst_type].stream;
 
     status = uct_cuda_copy_init_stream(stream);
     if (status != UCS_OK) {
         return NULL;
     }
+
+    pthread_mutex_unlock(&lock);
 
     return stream;
 }
@@ -109,26 +114,33 @@ uct_cuda_copy_post_cuda_async_copy(uct_ep_h tl_ep, void *dst, void *src,
     ucs_memory_type_t src_type;
     ucs_memory_type_t dst_type;
     CUstream *stream;
+    CUcontext current_ctx;
     ucs_queue_head_t *event_q;
+    uct_cuda_copy_per_ctx_rsc_t *ctx_rsc;
 
     if (!length) {
         return UCS_OK;
     }
 
+
     /* ensure context is set before creating events/streams */
-    if (iface->cuda_context == NULL) {
-        UCT_CUDADRV_FUNC_LOG_ERR(cuCtxGetCurrent(&iface->cuda_context));
-        if (iface->cuda_context == NULL) {
-            ucs_error("attempt to perform cuda memcpy without active context");
+    UCT_CUDADRV_FUNC_LOG_ERR(cuCtxGetCurrent(&current_ctx));
+    if (current_ctx == NULL) {
+        ucs_error("attempt to perform cuda memcpy without active context");
+        return UCS_ERR_IO_ERROR;
+    } else {
+        status = uct_cuda_copy_get_ctx_rscs(iface, current_ctx, &ctx_rsc);
+        if (UCS_OK != status) {
+            ucs_error("unable to get resources associated with cuda context");
             return UCS_ERR_IO_ERROR;
         }
     }
 
     src_type = uct_cuda_copy_get_mem_type(base_iface->md, src, length);
     dst_type = uct_cuda_copy_get_mem_type(base_iface->md, dst, length);
-    q_desc   = &iface->queue_desc[src_type][dst_type];
+    q_desc   = &ctx_rsc->queue_desc[src_type][dst_type];
     event_q  = &q_desc->event_queue;
-    stream   = uct_cuda_copy_get_stream(iface, src_type, dst_type);
+    stream   = uct_cuda_copy_get_stream(ctx_rsc, src_type, dst_type);
     if (stream == NULL) {
         ucs_error("stream for src %s dst %s not available",
                    ucs_memory_type_names[src_type],
@@ -136,7 +148,7 @@ uct_cuda_copy_post_cuda_async_copy(uct_ep_h tl_ep, void *dst, void *src,
         return UCS_ERR_IO_ERROR;
     }
 
-    cuda_event = ucs_mpool_get(&iface->cuda_event_desc);
+    cuda_event = ucs_mpool_get(&ctx_rsc->cuda_event_desc);
     if (ucs_unlikely(cuda_event == NULL)) {
         ucs_error("Failed to allocate cuda event object");
         return UCS_ERR_NO_MEMORY;
@@ -215,8 +227,25 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_copy_ep_put_short,
                  uint64_t remote_addr, uct_rkey_t rkey)
 {
     uct_cuda_copy_iface_t *iface = ucs_derived_of(tl_ep->iface, uct_cuda_copy_iface_t);
-    CUstream *stream             = &iface->short_stream;
+    CUstream *stream;
     ucs_status_t status;
+    CUcontext current_ctx;
+    uct_cuda_copy_per_ctx_rsc_t *ctx_rsc;
+
+    /* ensure context is set before creating events/streams */
+    UCT_CUDADRV_FUNC_LOG_ERR(cuCtxGetCurrent(&current_ctx));
+    if (current_ctx == NULL) {
+        ucs_error("attempt to perform cuda memcpy without active context");
+        return UCS_ERR_IO_ERROR;
+    } else {
+        status = uct_cuda_copy_get_ctx_rscs(iface, current_ctx, &ctx_rsc);
+        if (UCS_OK != status) {
+            ucs_error("unable to get resources associated with cuda context");
+            return UCS_ERR_IO_ERROR;
+        }
+    }
+
+    stream = &ctx_rsc->short_stream;
 
     status = uct_cuda_copy_init_stream(stream);
     if (status != UCS_OK) {
@@ -240,9 +269,25 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_copy_ep_get_short,
                  uint64_t remote_addr, uct_rkey_t rkey)
 {
     uct_cuda_copy_iface_t *iface = ucs_derived_of(tl_ep->iface, uct_cuda_copy_iface_t);
-    CUstream *stream             = &iface->short_stream;
+    CUstream *stream;
     ucs_status_t status;
+    CUcontext current_ctx;
+    uct_cuda_copy_per_ctx_rsc_t *ctx_rsc;
 
+    /* ensure context is set before creating events/streams */
+    UCT_CUDADRV_FUNC_LOG_ERR(cuCtxGetCurrent(&current_ctx));
+    if (current_ctx == NULL) {
+        ucs_error("attempt to perform cuda memcpy without active context");
+        return UCS_ERR_IO_ERROR;
+    } else {
+        status = uct_cuda_copy_get_ctx_rscs(iface, current_ctx, &ctx_rsc);
+        if (UCS_OK != status) {
+            ucs_error("unable to get resources associated with cuda context");
+            return UCS_ERR_IO_ERROR;
+        }
+    }
+
+    stream = &ctx_rsc->short_stream;
     status = uct_cuda_copy_init_stream(stream);
     if (status != UCS_OK) {
         return status;

@@ -9,6 +9,7 @@
 
 #include <ucs/datastruct/bitmap.h>
 #include <ucs/memory/memory_type.h>
+#include <ucs/datastruct/khash.h>
 #include <uct/base/uct_iface.h>
 #include <uct/cuda/base/cuda_iface.h>
 
@@ -48,11 +49,27 @@ typedef struct uct_cuda_copy_queue_desc {
     ucs_queue_elem_t            queue;
 } uct_cuda_copy_queue_desc_t;
 
+typedef struct uct_cuda_copy_per_ctx_rsc {
+    /* stream used to issue short operations */
+    CUcontext                   cuda_ctx;
+    unsigned long long          ctx_id;
+    /* pool of cuda events to check completion of memcpy operations */
+    ucs_mpool_t                 cuda_event_desc;
+    /* stream used to issue short operations */
+    CUstream                    short_stream;
+    /* array of queue descriptors for each src/dst memory type combination */
+    uct_cuda_copy_queue_desc_t  queue_desc[UCS_MEMORY_TYPE_LAST][UCS_MEMORY_TYPE_LAST];
+} uct_cuda_copy_per_ctx_rsc_t;
+
+
+KHASH_MAP_INIT_INT64(cuda_copy_ctx_rscs, struct uct_cuda_copy_per_ctx_rsc*);
 
 typedef struct uct_cuda_copy_iface {
     uct_cuda_iface_t            super;
     /* used to store uuid and check iface reachability */
     uct_cuda_copy_iface_addr_t  id;
+    /* per context resources */
+    khash_t(cuda_copy_ctx_rscs) ctx_rscs;
     /* pool of cuda events to check completion of memcpy operations */
     ucs_mpool_t                 cuda_event_desc;
     /* list of queues which require progress */
@@ -104,5 +121,10 @@ uct_cuda_copy_flush_bitmap_idx(ucs_memory_type_t src_mem_type,
 {
     return (src_mem_type * UCS_MEMORY_TYPE_LAST) + dst_mem_type;
 }
+
+
+ucs_status_t uct_cuda_copy_get_ctx_rscs(uct_cuda_copy_iface_t *iface,
+                                        CUcontext cuda_ctx,
+                                        uct_cuda_copy_per_ctx_rsc_t **ctx_rsc_p);
 
 #endif
