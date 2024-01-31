@@ -15,29 +15,8 @@
 #include <pthread.h>
 
 
-#define UCT_CUDA_MEMORY_TYPES_MAP 64
-
 typedef uint64_t uct_cuda_copy_iface_addr_t;
 
-
-/*
-    uct_cu_stream_bitmap_t will be treated as a 2D bitmap, in which
-    each bit represents a CUstream from the queue_desc attr:
-    row index is source mem_type and column index is the dest mem_type.
-
-    For example:
-    H - Host, C - Cuda, R - ROCm, I - Infiniband (RDMA)
-
-      H C R I
-    H 0 0 0 0 
-    C 0 0 0 0 
-    R 0 0 0 0 
-    I 0 0 0 0
-
-    Bits will be set using:
-    UCS_BITMAP_SET(bitmap, uct_cuda_copy_flush_bitmap_idx(src_mem_type, dst_mem_type))
-*/
-typedef ucs_bitmap_t(UCT_CUDA_MEMORY_TYPES_MAP) uct_cu_stream_bitmap_t;
 
 typedef struct uct_cuda_copy_queue_desc {
     /* stream on which asynchronous memcpy operations are enqueued */
@@ -79,7 +58,6 @@ typedef struct uct_cuda_copy_iface {
 
     /* 2D bitmap representing which streams in queue_desc matrix 
        should sync during flush */
-    uct_cu_stream_bitmap_t streams_to_sync;
 } uct_cuda_copy_iface_t;
 
 
