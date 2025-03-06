@@ -264,6 +264,7 @@ found:
                 key->b_len);
 
     packed->pid    = memh->pid;
+    packed->sys_id = memh->sys_id;
     packed->ph     = key->ph;
     packed->d_bptr = key->d_bptr;
     packed->b_len  = key->b_len;
@@ -316,7 +317,7 @@ uct_cuda_ipc_is_peer_accessible(uct_cuda_ipc_component_t *component,
          * put/get operation.
          * Now, we immediately insert into cache to save on calling
          * OpenMemHandle for the same handle because the cache is globally
-         * accessible using rkey->pid. */
+         * accessible using rkey->pid and rkey->sys_id. */
         status = uct_cuda_ipc_map_memhandle(rkey, &d_mapped);
 
         *accessible = ((status == UCS_OK) || (status == UCS_ERR_ALREADY_EXISTS))
@@ -384,6 +385,7 @@ uct_cuda_ipc_mem_reg(uct_md_h md, void *address, size_t length,
 
     memh->dev_num = (int) cu_device;
     memh->pid     = getpid();
+    memh->sys_id  = ucs_get_system_id();
     ucs_list_head_init(&memh->list);
 
     *memh_p = memh;

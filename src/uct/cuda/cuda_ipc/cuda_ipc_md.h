@@ -109,6 +109,7 @@ typedef struct uct_cuda_ipc_md_config {
  */
 typedef struct {
     pid_t           pid;     /* PID as key to resolve peer_map hash */
+    uint64_t        sys_id;  /* system ID is also needed for MNNVL */
     int             dev_num; /* GPU Device number */
     ucs_list_link_t list;
 } uct_cuda_ipc_memh_t;
@@ -131,6 +132,7 @@ typedef struct {
 typedef struct {
     uct_cuda_ipc_md_handle_t  ph;      /* Memory handle of GPU memory */
     pid_t                     pid;     /* PID as key to resolve peer_map hash */
+    uint64_t                  sys_id;  /* sys_id also need for MNNVL cases */
     CUdeviceptr               d_bptr;  /* Allocation base address */
     size_t                    b_len;   /* Allocation size */
     int                       dev_num; /* GPU Device number */
