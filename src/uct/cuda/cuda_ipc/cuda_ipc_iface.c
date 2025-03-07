@@ -357,6 +357,7 @@ uct_cuda_ipc_progress_event_q(uct_cuda_ipc_iface_t *iface,
         }
 
         status = uct_cuda_ipc_unmap_memhandle(cuda_ipc_event->pid,
+                                              cuda_ipc_event->uuid,
                                               cuda_ipc_event->d_bptr,
                                               cuda_ipc_event->mapped_addr,
                                               iface->config.enable_cache);

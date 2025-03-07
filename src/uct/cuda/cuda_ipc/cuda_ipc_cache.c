@@ -21,6 +21,7 @@
 
 typedef struct uct_cuda_ipc_cache_hash_key {
     pid_t    pid;
+    CUuuid   uuid;
     CUdevice cu_device;
 } uct_cuda_ipc_cache_hash_key_t;
 
@@ -28,7 +29,8 @@ static UCS_F_ALWAYS_INLINE int
 uct_cuda_ipc_cache_hash_equal(uct_cuda_ipc_cache_hash_key_t key1,
                               uct_cuda_ipc_cache_hash_key_t key2)
 {
-    return (key1.pid == key2.pid) && (key1.cu_device == key2.cu_device);
+    return (key1.pid == key2.pid) && (key1.cu_device == key2.cu_device) &&
+           !memcmp(&key1.uuid, &key2.uuid, sizeof(key1.uuid));
 }
 
 static UCS_F_ALWAYS_INLINE khint32_t
@@ -392,7 +394,8 @@ static void uct_cuda_ipc_cache_invalidate_regions(uct_cuda_ipc_cache_t *cache,
 }
 
 static ucs_status_t
-uct_cuda_ipc_get_remote_cache(pid_t pid, uct_cuda_ipc_cache_t **cache)
+uct_cuda_ipc_get_remote_cache(pid_t pid, CUuuid uuid,
+                              uct_cuda_ipc_cache_t **cache)
 {
     ucs_status_t status = UCS_OK;
     char target_name[64];
@@ -404,14 +407,15 @@ uct_cuda_ipc_get_remote_cache(pid_t pid, uct_cuda_ipc_cache_t **cache)
 
     ucs_recursive_spin_lock(&uct_cuda_ipc_remote_cache.lock);
 
-    key.pid = pid;
+    key.pid  = pid;
+    key.uuid = uuid;
 
     khiter = kh_put(cuda_ipc_rem_cache, &uct_cuda_ipc_remote_cache.hash, key,
                     &khret);
     if ((khret == UCS_KH_PUT_BUCKET_EMPTY) ||
         (khret == UCS_KH_PUT_BUCKET_CLEAR)) {
-        ucs_snprintf_safe(target_name, sizeof(target_name), "dest:%d:%d",
-                          key.pid, key.cu_device);
+        ucs_snprintf_safe(target_name, sizeof(target_name), "dest:%d:%d:%s",
+                          key.pid, key.cu_device, (char*)key.uuid.bytes);
         status = uct_cuda_ipc_create_cache(cache, target_name);
         if (status != UCS_OK) {
             kh_del(cuda_ipc_rem_cache, &uct_cuda_ipc_remote_cache.hash, khiter);
@@ -432,15 +436,16 @@ err_unlock:
     return status;
 }
 
-ucs_status_t uct_cuda_ipc_unmap_memhandle(pid_t pid, uintptr_t d_bptr,
-                                          void *mapped_addr, int cache_enabled)
+ucs_status_t
+uct_cuda_ipc_unmap_memhandle(pid_t pid, CUuuid uuid, uintptr_t d_bptr,
+                             void *mapped_addr, int cache_enabled)
 {
     ucs_status_t status = UCS_OK;
     uct_cuda_ipc_cache_t *cache;
     ucs_pgt_region_t *pgt_region;
     uct_cuda_ipc_cache_region_t *region;
 
-    status = uct_cuda_ipc_get_remote_cache(pid, &cache);
+    status = uct_cuda_ipc_get_remote_cache(pid, uuid, &cache);
     if (status != UCS_OK) {
         return status;
     }
@@ -488,7 +493,7 @@ UCS_PROFILE_FUNC(ucs_status_t, uct_cuda_ipc_map_memhandle, (key, mapped_addr),
     cmp_size = sizeof(key->ph);
 #endif
 
-    status = uct_cuda_ipc_get_remote_cache(key->pid, &cache);
+    status = uct_cuda_ipc_get_remote_cache(key->pid, key->uuid, &cache);
     if (status != UCS_OK) {
         return status;
     }
